@@ -94,8 +94,10 @@ type MerklePath = [Either Hash Hash]
 data MerkleProof a = MerkleProof a MerklePath
 
 instance Show a => Show (MerkleProof a) where
-  show (MerkleProof a path) = "(MerkleProof" ++ " " ++ show a ++ " " ++ showMerklePath path ++ ")"
-
+  showsPrec d (MerkleProof a path) = showParen (d > app_prec) $
+            showString "MerkleProof " . showsPrec (app_prec+1) a . showString " " . showString (showMerklePath path)
+         where app_prec = 10
+         
 buildProof :: Hashable a => a -> Tree a -> Maybe (MerkleProof a)
 buildProof el t =
   let paths = merklePaths el t
