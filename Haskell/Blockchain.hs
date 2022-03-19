@@ -152,7 +152,19 @@ validateReceipt r hdr =
     && verifyProof (txroot hdr) (txrProof r)
 
 mineTransactions :: Miner -> Hash -> [Transaction] -> (Block, [TransactionReceipt])
-mineTransactions miner parent txs = undefined
+mineTransactions miner parent txs =
+  let block = mineBlock miner parent txs
+   in let coinbase = coinbaseTx miner
+       in let transactionTree = buildTree (coinbase : txs)
+           in let receipts =
+                    map
+                      ( \tx ->
+                          case buildProof tx transactionTree of
+                            Just proof -> TxReceipt {txrBlock = hash block, txrProof = proof}
+                            Nothing -> error "internal error"
+                      )
+                      txs
+               in (block, receipts)
 
 -- | Pretty printing
 -- >>> runShows $ pprBlock block2
