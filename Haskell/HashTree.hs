@@ -7,20 +7,6 @@ import Data.Maybe (listToMaybe)
 import Hashable32 (Hash, Hashable (hash), showHash)
 
 -- A
-
--- |
--- >>> putStr $ drawTree $ buildTree "fubar"
--- 0x2e1cc0e4 -
---   0xfbfe18ac -
---     0x6600a107 -
---       0x00000066 'f'
---       0x00000075 'u'
---     0x62009aa7 -
---       0x00000062 'b'
---       0x00000061 'a'
---   0xd11bea20 +
---     0x7200b3e8 +
---       0x00000072 'r'
 data BaseTree a = Leaf a | Node (Tree a) (Tree a) | Twig (Tree a)
 
 type Tree a = (Hash, BaseTree a)
@@ -69,26 +55,6 @@ reducePairsHelper [a] acc = twig a : acc
 reducePairsHelper (a : b : t) acc = reducePairsHelper t (node a b : acc)
 
 -- B
-
--- | Merkle paths and proofs
---
--- Examples:
--- >>> mapM_ print $ map showMerklePath  $ merklePaths 'i' $ buildTree "bitcoin"
--- "<0x5214666a<0x7400b6ff>0x00000062"
--- ">0x69f4387c<0x6e00ad98>0x0000006f"
---
--- >>> buildProof 'i' $ buildTree "bitcoin"
--- Just (MerkleProof 'i' <0x5214666a<0x7400b6ff>0x00000062)
---
--- >>> buildProof 'e' $ buildTree "bitcoin"
--- Nothing
---
--- >>> let t = buildTree "bitcoin"
--- >>> let proof = buildProof 'i' t
--- >>> verifyProof (treeHash t) <$> proof
--- Just True
--- >>> verifyProof 0xbada55bb <$> proof
--- Just False
 type MerklePath = [Either Hash Hash]
 
 data MerkleProof a = MerkleProof a MerklePath
@@ -97,7 +63,7 @@ instance Show a => Show (MerkleProof a) where
   showsPrec d (MerkleProof a path) = showParen (d > app_prec) $
             showString "MerkleProof " . showsPrec (app_prec+1) a . showString " " . showString (showMerklePath path)
          where app_prec = 10
-         
+
 buildProof :: Hashable a => a -> Tree a -> Maybe (MerkleProof a)
 buildProof el t =
   let paths = merklePaths el t
