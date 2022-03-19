@@ -21,7 +21,7 @@ import Hashable32 (Hash, Hashable (hash), showHash)
 --   0xd11bea20 +
 --     0x7200b3e8 +
 --       0x00000072 'r'
-data BaseTree a = Leaf a | Node (Tree a) (Tree a) | Twig (Tree a)
+data BaseTree a = Nil | Leaf a | Node (Tree a) (Tree a) | Twig (Tree a)
 
 type Tree a = (Hash, BaseTree a)
 
