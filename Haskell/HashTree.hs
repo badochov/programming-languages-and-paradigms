@@ -21,7 +21,7 @@ import Hashable32 (Hash, Hashable (hash), showHash)
 --   0xd11bea20 +
 --     0x7200b3e8 +
 --       0x00000072 'r'
-data BaseTree a = Nil | Leaf a | Node (Tree a) (Tree a) | Twig (Tree a)
+data BaseTree a = Leaf a | Node (Tree a) (Tree a) | Twig (Tree a)
 
 type Tree a = (Hash, BaseTree a)
 
@@ -94,7 +94,7 @@ type MerklePath = [Either Hash Hash]
 data MerkleProof a = MerkleProof a MerklePath
 
 instance Show a => Show (MerkleProof a) where
-  show (MerkleProof a path) = "(MerkleProof" ++ show a ++ showMerklePath path ++ ")"
+  show (MerkleProof a path) = "(MerkleProof" ++ " " ++ show a ++ " " ++ showMerklePath path ++ ")"
 
 buildProof :: Hashable a => a -> Tree a -> Maybe (MerkleProof a)
 buildProof el t =
