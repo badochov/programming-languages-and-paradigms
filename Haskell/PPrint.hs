@@ -6,17 +6,19 @@ writeln :: String -> IO ()
 writeln = putStrLn
 
 showsPair :: Show a => (String, a) -> ShowS
-showsPair (k,v) = undefined
+showsPair (k, v) = showString k . showString ": " . shows v
 
 pprH, pprV :: [ShowS] -> ShowS
-pprV = intercalateS undefined
-pprH = intercalateS undefined
+pprV = intercalateS (showString "\n")
+pprH = intercalateS (showString " ")
 
 intercalateS :: ShowS -> [ShowS] -> ShowS
-intercalateS sep list = undefined
+intercalateS sep [] = showString ""
+intercalateS sep [s] = s
+intercalateS sep (f : s : t) = intercalateS sep (f . sep . s : t)
 
 pprListWith :: (a -> ShowS) -> [a] -> ShowS
-pprListWith = undefined
+pprListWith fn l = intercalateS (showString "\n") (map fn l) 
 
 runShows :: ShowS -> IO ()
-runShows = putStrLn . ($"")
+runShows = putStrLn . ($ "")
