@@ -1,5 +1,4 @@
 -- hb417666
-
 module Blockchain where
 
 import Control.Monad
