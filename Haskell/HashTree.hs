@@ -1,10 +1,11 @@
 -- hb417666
 {-# LANGUAGE LambdaCase #-}
 
-module HashTree (leaf, twig, node, buildTree, treeHash, drawTree, buildProof, merklePaths, verifyProof, MerkleProof, MerklePath) where
+module HashTree (leaf, twig, node, buildTree, treeHash, drawTree, buildProof, merklePaths, verifyProof, showMerklePath, MerkleProof, MerklePath) where
 
 import Data.Maybe (listToMaybe)
 import Hashable32 (Hash, Hashable (hash), showHash)
+import PPrint (intercalateS)
 
 -- A
 data BaseTree a = Leaf a | Node (Tree a) (Tree a) | Twig (Tree a)
@@ -29,18 +30,18 @@ treeHash :: Tree a -> Hash
 treeHash = fst
 
 drawTree :: Show a => Tree a -> String
-drawTree = drawTreeHelper ""
+drawTree t = drawTreeHelper (showString "") t ""
 
-drawTreeHelper :: Show a => String -> Tree a -> String
+drawTreeHelper :: Show a => ShowS -> Tree a -> ShowS
 drawTreeHelper prefix (h, t) =
-  prefix ++ showHash h ++ " " ++ nodeSpecific
+  prefix . showString (showHash h) . showString " " . nodeSpecific
   where
     nodeSpecific =
       case t of
-        Leaf l -> show l ++ "\n"
-        Twig t -> "+\n" ++ drawChild t
-        Node r l -> "-\n" ++ drawChild r ++ drawChild l
-    drawChild = drawTreeHelper (prefix ++ "  ")
+        Leaf l -> showString (show l) . showString "\n"
+        Twig t -> showString "+\n" . drawChild t
+        Node r l -> showString "-\n" . drawChild r . drawChild l
+    drawChild = drawTreeHelper (prefix . showString "  ")
 
 buildTreeFromTrees :: Hashable a => [Tree a] -> Tree a
 buildTreeFromTrees [t] = t
@@ -60,52 +61,50 @@ type MerklePath = [Either Hash Hash]
 data MerkleProof a = MerkleProof a MerklePath
 
 instance Show a => Show (MerkleProof a) where
-  showsPrec d (MerkleProof a path) = showParen (d > app_prec) $
-            showString "MerkleProof " . showsPrec (app_prec+1) a . showString " " . showString (showMerklePath path)
-         where app_prec = 10
+  showsPrec d (MerkleProof a path) =
+    showParen (d > app_prec) $
+      showString "MerkleProof " . showsPrec (app_prec + 1) a . showString " " . showString (showMerklePath path)
+    where
+      app_prec = 10
 
 buildProof :: Hashable a => a -> Tree a -> Maybe (MerkleProof a)
 buildProof el t =
   let paths = merklePaths el t
    in fmap (MerkleProof el) (listToMaybe paths)
 
--- TODO try improve mem complexity
 merklePaths :: Hashable a => a -> Tree a -> [MerklePath]
 merklePaths el t =
-  let hashEl = hash el
-   in reverse $ helper [] [([], t)]
+  reverse $ helper [] [([], t)]
   where
+    hashEl = hash el
     helper res [] = res
     helper res ((p, (h, tree)) : t) =
       let (q, res') = case tree of
-            Leaf l -> (t, if h == hash el then reverse p : res else res)
-            Twig (lh, lt) -> ((Left lh : p, (lh, lt)) : t, res)
-            Node (lh, lt) (rh, rt) ->
-              ((Left rh : p, (lh, lt)) : (Right lh : p, (rh, rt)) : t, res)
+            Leaf _ -> (t, if h == hashEl then reverse p : res else res)
+            Twig l@(lh, lt) -> ((Left lh : p, l) : t, res)
+            Node l@(lh, lt) r@(rh, rt) ->
+              ((Left rh : p, l) : (Right lh : p, r) : t, res)
        in helper res' q
 
 verifyProof :: Hashable a => Hash -> MerkleProof a -> Bool
 verifyProof h (MerkleProof a p) =
-  let reducer n h =
-        hash
-          ( case n of
-              Left l -> hash (h, l)
-              Right r -> hash (r, h)
-          )
-   in let calcH =
-            foldr
-              reducer
-              (hash a)
-              p
-       in calcH == h
+  let calcH =
+        foldr
+          reducer
+          (hash a)
+          p
+   in calcH == h
+  where
+    reducer (Left l) h = hash (h, l)
+    reducer (Right r) h = hash (r, h)
 
 showMerklePath :: MerklePath -> String
 showMerklePath path =
   let mapped =
         map
-          ( \case
+          ( showString . \case
               Left l -> "<" ++ showHash l
               Right r -> ">" ++ showHash r
           )
           path
-   in concat mapped
+   in intercalateS (showString "") mapped ""
