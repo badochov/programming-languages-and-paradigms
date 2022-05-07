@@ -18,9 +18,6 @@ all : Grammar/Test
 
 # Rules for building the parser.
 
-Grammar/Abs.hs Grammar/Lex.x Grammar/Par.y Grammar/Print.hs Grammar/Test.hs : grammar.ebnf
-	bnfc --haskell -d grammar.ebnf
-
 %.hs : %.y
 	${HAPPY} ${HAPPY_OPTS} $<
 

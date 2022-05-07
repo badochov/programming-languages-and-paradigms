@@ -31,34 +31,37 @@ library
       Grammar.Print
       Grammar.Skel
       Grammar.Test
-      Lib
+      Interpreter
   other-modules:
       Paths_interpreter
   hs-source-dirs:
       src
   build-depends:
-      BNFC
-    , alex
+      array
     , base >=4.7 && <5
     , containers
-    , happy
     , mtl
   default-language: Haskell2010
 
 executable interpreter-exe
-  main-is: Main.hs
+  main-is: zoya.hs
   other-modules:
+      Grammar.Abs
+      Grammar.ErrM
+      Grammar.Lex
+      Grammar.Par
+      Grammar.Print
+      Grammar.Skel
+      Grammar.Test
+      Interpreter
       Paths_interpreter
   hs-source-dirs:
-      app
+      src
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      BNFC
-    , alex
+      array
     , base >=4.7 && <5
     , containers
-    , happy
-    , interpreter
     , mtl
   default-language: Haskell2010
 
@@ -71,11 +74,8 @@ test-suite interpreter-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      BNFC
-    , alex
+      array
     , base >=4.7 && <5
     , containers
-    , happy
-    , interpreter
     , mtl
   default-language: Haskell2010

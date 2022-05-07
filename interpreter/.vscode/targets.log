@@ -1,0 +1,322 @@
+make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+# GNU Make 4.3
+# Built for x86_64-pc-linux-gnu
+# Copyright (C) 1988-2020 Free Software Foundation, Inc.
+# License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+# This is free software: you are free to change and redistribute it.
+# There is NO WARRANTY, to the extent permitted by law.
+
+# Make data base, printed on Sun May  8 01:32:04 2022
+
+# Variables
+
+ 
+# environment
+GDK_BACKEND = x11
+# environment
+LC_ALL = C
+# environment
+NO_AT_BRIDGE = 1
+# environment
+GJS_DEBUG_OUTPUT = stderr
+# environment
+VSCODE_IPC_HOOK_EXTHOST = /run/user/1000/vscode-ipc-c8e6ea3e-801f-40da-8c8a-e15b780626f2.sock
+# environment
+LC_NAME = pl_PL.UTF-8
+# environment
+LC_NUMERIC = pl_PL.UTF-8
+# environment
+VSCODE_CWD = /home/badochov/Desktop/programming-languages-and-paradigms
+# environment
+LC_ADDRESS = pl_PL.UTF-8
+# environment
+GDM_LANG = en_US.UTF-8
+# default
+MAKE_COMMAND := make
+# environment
+VSCODE_GIT_ASKPASS_EXTRA_ARGS = --ms-enable-electron-run-as-node
+# automatic
+@D = $(patsubst %/,%,$(dir $@))
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# default
+.VARIABLES := 
+# environment
+PWD = /home/badochov/Desktop/programming-languages-and-paradigms/interpreter
+# automatic
+%D = $(patsubst %/,%,$(dir $%))
+# environment
+MAIL = /var/spool/mail/badochov
+# environment
+XDG_DATA_DIRS = /home/badochov/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share
+# environment
+OLDPWD = /home/badochov/Desktop/programming-languages-and-paradigms
+# automatic
+^D = $(patsubst %/,%,$(dir $^))
+# environment
+VSCODE_LOG_STACK = false
+# automatic
+%F = $(notdir $%)
+# environment
+VSCODE_CODE_CACHE_PATH = /home/badochov/.config/Code/CachedData/57fd6d0195bb9b9d1b49f6da5db789060795de47
+# environment
+LANG = C
+# environment
+XAUTHORITY = /run/user/1000/.mutter-Xwaylandauth.GK4RL1
+# default
+.LOADED := 
+# default
+.INCLUDE_DIRS = /usr/include /usr/local/include /usr/include
+# makefile
+MAKEFLAGS = pqrR
+# makefile
+CURDIR := /home/badochov/Desktop/programming-languages-and-paradigms/interpreter
+# environment
+VSCODE_PIPE_LOGGING = true
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
+# automatic
+*D = $(patsubst %/,%,$(dir $*))
+# environment
+MFLAGS = -pqrR
+# environment
+SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
+# default
+.SHELLFLAGS := -c
+# environment
+WAYLAND_DISPLAY = wayland-0
+# automatic
++D = $(patsubst %/,%,$(dir $+))
+# environment
+GIT_ASKPASS = /opt/visual-studio-code/resources/app/extensions/git/dist/askpass.sh
+# environment
+XDG_SESSION_DESKTOP = gnome
+# makefile (from 'Makefile', line 1)
+MAKEFILE_LIST := Makefile
+# automatic
+@F = $(notdir $@)
+# environment
+VSCODE_VERBOSE_LOGGING = true
+# environment
+VSCODE_PID = 4825
+# environment
+XDG_SESSION_TYPE = wayland
+# automatic
+?D = $(patsubst %/,%,$(dir $?))
+# environment
+SESSION_MANAGER = local/ruta:@/tmp/.ICE-unix/3647,unix/ruta:/tmp/.ICE-unix/3647
+# automatic
+*F = $(notdir $*)
+# environment
+QT_QPA_PLATFORMTHEME = gtk
+# environment
+CHROME_DESKTOP = code-url-handler.desktop
+# environment
+DBUS_SESSION_BUS_ADDRESS = unix:abstract=/tmp/dbus-2igBtCEeeM,guid=3dc139a2a9c7f683eb5c21136276c244
+# automatic
+<D = $(patsubst %/,%,$(dir $<))
+# environment
+VSCODE_NLS_CONFIG = {"locale":"en-us","availableLanguages":{},"_languagePackSupport":true}
+# default
+MAKE_HOST := x86_64-pc-linux-gnu
+# makefile
+SHELL = /bin/sh
+# default
+MAKECMDGOALS := all
+# environment
+GJS_DEBUG_TOPICS = JS ERROR;JS LOG
+# environment
+SHLVL = 5
+# environment
+MAKELEVEL := 0
+# default
+MAKE = $(MAKE_COMMAND)
+# environment
+PATH = /home/badochov/.ghcup/bin:/home/badochov/.cabal/bin:/home/badochov/.local/bin:/home/badochov/.ghcup/bin:/home/badochov/.cabal/bin:/home/badochov/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
+# default
+MAKEFILES := 
+# environment
+VSCODE_GIT_IPC_HANDLE = /run/user/1000/vscode-git-8209631ab3.sock
+# environment
+VSCODE_GIT_ASKPASS_NODE = /opt/visual-studio-code/code
+# environment
+LC_MONETARY = pl_PL.UTF-8
+# environment
+MOTD_SHOWN = pam
+# automatic
+^F = $(notdir $^)
+# environment
+LC_TIME = pl_PL.UTF-8
+# environment
+VSCODE_GIT_ASKPASS_MAIN = /opt/visual-studio-code/resources/app/extensions/git/dist/askpass-main.js
+# environment
+VSCODE_LOG_NATIVE = false
+# environment
+USERNAME = badochov
+# environment
+TERM_PROGRAM = vscode
+# environment
+GNOME_SETUP_DISPLAY = :1
+# environment
+LC_TELEPHONE = pl_PL.UTF-8
+# automatic
+?F = $(notdir $?)
+# environment
+XDG_CURRENT_DESKTOP = GNOME
+# automatic
++F = $(notdir $+)
+# environment
+DESKTOP_SESSION = gnome
+# environment
+ORIGINAL_XDG_CURRENT_DESKTOP = GNOME
+# 'override' directive
+GNUMAKEFLAGS := 
+# environment
+LOGNAME = badochov
+# environment
+GIO_LAUNCHED_DESKTOP_FILE = /usr/share/applications/visual-studio-code.desktop
+# makefile
+.DEFAULT_GOAL := all
+# environment
+DISPLAY = :0
+# environment
+USER = badochov
+# default
+MAKE_VERSION := 4.3
+# environment
+LC_MEASUREMENT = pl_PL.UTF-8
+# environment
+GIO_LAUNCHED_DESKTOP_FILE_PID = 4800
+# environment
+QT_STYLE_OVERRIDE = gtk2
+# environment
+_ = /usr/bin/make
+# environment
+LC_PAPER = pl_PL.UTF-8
+# environment
+XDG_RUNTIME_DIR = /run/user/1000
+# environment
+COLORTERM = truecolor
+# environment
+XDG_SESSION_CLASS = user
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
+# environment
+HOME = /home/badochov
+# environment
+ELECTRON_RUN_AS_NODE = 1
+# environment
+VSCODE_IPC_HOOK = /run/user/1000/vscode-d7e12f69-1.67.0-main.sock
+# environment
+TERM = xterm-256color
+# default
+.RECIPEPREFIX := 
+# automatic
+<F = $(notdir $<)
+# default
+SUFFIXES := 
+# environment
+VSCODE_CLI = 1
+# environment
+ELECTRON_NO_ATTACH_CONSOLE = 1
+# default
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync check-symlink guile load
+# environment
+XDG_MENU_PREFIX = gnome-
+# environment
+TERM_PROGRAM_VERSION = 1.67.0
+# environment
+QTWEBENGINE_CHROMIUM_FLAGS = -blink-settings=darkModeEnabled=true -enable-features=OverlayScrollbar,OverlayScrollbarFlashAfterAnyScrollUpdate,OverlayScrollbarFlashWhenMouseEnter
+# environment
+GDMSESSION = gnome
+# environment
+LC_IDENTIFICATION = pl_PL.UTF-8
+# variable set hash-table stats:
+# Load=110/1024=11%, Rehash=0, Collisions=6/140=4%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# . (device 66310, inode 40239851): 17 files, no impossibilities.
+
+# 17 files, no impossibilities in 1 directories.
+
+# Implicit Rules
+
+# No implicit rules.
+
+# Files
+
+interpreter:
+#  Implicit rule search has not been done.
+#  Last modified 2022-05-08 01:31:01.494872991
+#  File has been updated.
+#  Successfully updated.
+#  recipe to execute (from 'Makefile', line 6):
+	-make parser
+	-cd src && ghc zoya.hs -o ../interpreter
+
+parser:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 10):
+	-bnfc -d --functor -o src -m --functor src/grammar.ebnf
+	-cd src && make
+
+# Not a target:
+Makefile:
+#  Implicit rule search has been done.
+#  Last modified 2022-05-08 00:24:22.323484895
+#  File has been updated.
+#  Successfully updated.
+
+clean:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 14):
+	-cd src && make clean
+	-rm -f src/*.hi src/*.o src/*.log src/*.aux src/*.dvi
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+all: interpreter
+#  Phony target (prerequisite of .PHONY).
+#  Command line target.
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has been updated.
+#  Successfully updated.
+
+.PHONY: all clean
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# files hash-table stats:
+# Load=8/1024=1%, Rehash=0, Collisions=0/24=0%
+# VPATH Search Paths
+
+ 
+# No 'vpath' search paths.
+
+# No general ('VPATH' variable) search path.
+
+# strcache buffers: 1 (0) / strings = 25 / storage = 252 B / avg = 10 B
+# current buf: size = 8162 B / used = 252 B / count = 25 / avg = 10 B
+
+# strcache performance: lookups = 39 / hit rate = 35%
+# hash-table stats:
+# Load=25/8192=0%, Rehash=0, Collisions=0/39=0%
+# Finished Make data base on Sun May  8 01:32:04 2022
+
+ 

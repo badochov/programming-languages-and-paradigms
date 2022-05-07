@@ -15,141 +15,136 @@ type Result = Err String
 failure :: Show a => a -> Result
 failure x = Left $ "Undefined case: " ++ show x
 
-transIdent :: Grammar.Abs.Ident -> Result
-transIdent x = case x of
-  Grammar.Abs.Ident string -> failure x
+transVarName :: Grammar.Abs.VarName -> Result
+transVarName x = case x of
+  Grammar.Abs.VarName string -> failure x
 
-transVarIdent :: Grammar.Abs.VarIdent -> Result
-transVarIdent x = case x of
-  Grammar.Abs.VarIdent string -> failure x
-
-transTypeIdent :: Grammar.Abs.TypeIdent -> Result
-transTypeIdent x = case x of
-  Grammar.Abs.TypeIdent string -> failure x
+transTypeName :: Grammar.Abs.TypeName -> Result
+transTypeName x = case x of
+  Grammar.Abs.TypeName string -> failure x
 
 transPolyIdentToken :: Grammar.Abs.PolyIdentToken -> Result
 transPolyIdentToken x = case x of
   Grammar.Abs.PolyIdentToken string -> failure x
 
-transProgram :: Grammar.Abs.Program -> Result
+transProgram :: Show a => Grammar.Abs.Program' a -> Result
 transProgram x = case x of
-  Grammar.Abs.Program topdefs -> failure x
+  Grammar.Abs.Program _ topdefs -> failure x
 
-transTopDef :: Grammar.Abs.TopDef -> Result
+transTopDef :: Show a => Grammar.Abs.TopDef' a -> Result
 transTopDef x = case x of
-  Grammar.Abs.TopDefFn vardef -> failure x
-  Grammar.Abs.TopDefType typedef -> failure x
+  Grammar.Abs.TopDefFn _ vardef -> failure x
+  Grammar.Abs.TopDefType _ typedef -> failure x
 
-transTypeDef :: Grammar.Abs.TypeDef -> Result
+transTypeDef :: Show a => Grammar.Abs.TypeDef' a -> Result
 transTypeDef x = case x of
-  Grammar.Abs.TypeDef typeident typedefoption -> failure x
+  Grammar.Abs.TypeDef _ typename typedefoption -> failure x
 
-transTypeDefOption :: Grammar.Abs.TypeDefOption -> Result
+transTypeDefOption :: Show a => Grammar.Abs.TypeDefOption' a -> Result
 transTypeDefOption x = case x of
-  Grammar.Abs.TypeDefOption typeident typehs -> failure x
+  Grammar.Abs.TypeDefOption _ typename typehs -> failure x
 
-transTypeH :: Grammar.Abs.TypeH -> Result
+transTypeH :: Show a => Grammar.Abs.TypeH' a -> Result
 transTypeH x = case x of
-  Grammar.Abs.TypeDefHCustType typedefoption -> failure x
-  Grammar.Abs.TypeDefHType type_ -> failure x
+  Grammar.Abs.TypeDefHCustType _ typedefoption -> failure x
+  Grammar.Abs.TypeDefHType _ type_ -> failure x
 
-transVarDef :: Grammar.Abs.VarDef -> Result
+transVarDef :: Show a => Grammar.Abs.VarDef' a -> Result
 transVarDef x = case x of
-  Grammar.Abs.VarDef varident expr -> failure x
+  Grammar.Abs.VarDef _ varname expr -> failure x
 
-transArg :: Grammar.Abs.Arg -> Result
+transArg :: Show a => Grammar.Abs.Arg' a -> Result
 transArg x = case x of
-  Grammar.Abs.Arg varident -> failure x
+  Grammar.Abs.Arg _ varname -> failure x
 
-transType :: Grammar.Abs.Type -> Result
+transType :: Show a => Grammar.Abs.Type' a -> Result
 transType x = case x of
-  Grammar.Abs.TypeInt -> failure x
-  Grammar.Abs.TypeBool -> failure x
-  Grammar.Abs.TypePoly polyidenttoken -> failure x
-  Grammar.Abs.TypeFn typefnhs -> failure x
-  Grammar.Abs.TypeList type_ -> failure x
-  Grammar.Abs.TypePolyFill typeident polyidents -> failure x
+  Grammar.Abs.TypeInt _ -> failure x
+  Grammar.Abs.TypeBool _ -> failure x
+  Grammar.Abs.TypePoly _ polyidenttoken -> failure x
+  Grammar.Abs.TypeFn _ typefnhs -> failure x
+  Grammar.Abs.TypeList _ type_ -> failure x
+  Grammar.Abs.TypePolyFill _ typename polyidents -> failure x
 
-transTypeFnH :: Grammar.Abs.TypeFnH -> Result
+transTypeFnH :: Show a => Grammar.Abs.TypeFnH' a -> Result
 transTypeFnH x = case x of
-  Grammar.Abs.TypeFnH type_ -> failure x
+  Grammar.Abs.TypeFnH _ type_ -> failure x
 
-transPolyIdent :: Grammar.Abs.PolyIdent -> Result
+transPolyIdent :: Show a => Grammar.Abs.PolyIdent' a -> Result
 transPolyIdent x = case x of
-  Grammar.Abs.PolyIdent type_ -> failure x
+  Grammar.Abs.PolyIdent _ type_ -> failure x
 
-transBExpr :: Grammar.Abs.BExpr -> Result
-transBExpr x = case x of
-  Grammar.Abs.BEApp varident exprs -> failure x
-  Grammar.Abs.BEBrackets bexpr -> failure x
-  Grammar.Abs.Not bexpr -> failure x
-  Grammar.Abs.BERel expr1 relop expr2 -> failure x
-  Grammar.Abs.BEAnd bexpr1 bexpr2 -> failure x
-  Grammar.Abs.BEOr bexpr1 bexpr2 -> failure x
-
-transExpr :: Grammar.Abs.Expr -> Result
+transExpr :: Show a => Grammar.Abs.Expr' a -> Result
 transExpr x = case x of
-  Grammar.Abs.LambdaExpr args expr -> failure x
-  Grammar.Abs.MatchExpr match -> failure x
-  Grammar.Abs.EBExpr bexpr -> failure x
-  Grammar.Abs.ELetIn vardef expr -> failure x
-  Grammar.Abs.ECond bexpr expr1 expr2 -> failure x
-  Grammar.Abs.EApp ident exprs -> failure x
-  Grammar.Abs.ELitInt integer -> failure x
-  Grammar.Abs.ELitList largs -> failure x
-  Grammar.Abs.EBrackets expr -> failure x
-  Grammar.Abs.Neg expr -> failure x
-  Grammar.Abs.EListEx expr1 expr2 -> failure x
-  Grammar.Abs.EMul expr1 mulop expr2 -> failure x
-  Grammar.Abs.EAdd expr1 addop expr2 -> failure x
+  Grammar.Abs.LambdaExpr _ args expr -> failure x
+  Grammar.Abs.MatchExpr _ match -> failure x
+  Grammar.Abs.ELetIn _ vardef expr -> failure x
+  Grammar.Abs.ECond _ expr1 expr2 expr3 -> failure x
+  Grammar.Abs.EApp _ fnortypeident exprs -> failure x
+  Grammar.Abs.ELitInt _ integer -> failure x
+  Grammar.Abs.ELitList _ largs -> failure x
+  Grammar.Abs.EBrackets _ expr -> failure x
+  Grammar.Abs.Neg _ expr -> failure x
+  Grammar.Abs.Not _ expr -> failure x
+  Grammar.Abs.EListEx _ expr1 expr2 -> failure x
+  Grammar.Abs.EMul _ expr1 mulop expr2 -> failure x
+  Grammar.Abs.EAdd _ expr1 addop expr2 -> failure x
+  Grammar.Abs.ERel _ expr1 relop expr2 -> failure x
+  Grammar.Abs.EAnd _ expr1 expr2 -> failure x
+  Grammar.Abs.EOr _ expr1 expr2 -> failure x
 
-transLArg :: Grammar.Abs.LArg -> Result
+transLArg :: Show a => Grammar.Abs.LArg' a -> Result
 transLArg x = case x of
-  Grammar.Abs.ListArg expr -> failure x
+  Grammar.Abs.ListArg _ expr -> failure x
 
-transMatch :: Grammar.Abs.Match -> Result
+transFnOrTypeIdent :: Show a => Grammar.Abs.FnOrTypeIdent' a -> Result
+transFnOrTypeIdent x = case x of
+  Grammar.Abs.VarIdent _ varname -> failure x
+  Grammar.Abs.TypeIdent _ typename -> failure x
+
+transMatch :: Show a => Grammar.Abs.Match' a -> Result
 transMatch x = case x of
-  Grammar.Abs.Match expr matcharms -> failure x
+  Grammar.Abs.Match _ expr matcharms -> failure x
 
-transMatchArm :: Grammar.Abs.MatchArm -> Result
+transMatchArm :: Show a => Grammar.Abs.MatchArm' a -> Result
 transMatchArm x = case x of
-  Grammar.Abs.MatchArm matcharmspecifier expr -> failure x
+  Grammar.Abs.MatchArm _ matcharmspecifier expr -> failure x
 
-transMatchArmSpecifierHelper :: Grammar.Abs.MatchArmSpecifierHelper -> Result
+transMatchArmSpecifierHelper :: Show a => Grammar.Abs.MatchArmSpecifierHelper' a -> Result
 transMatchArmSpecifierHelper x = case x of
-  Grammar.Abs.MatchArmSpecifierH matcharmspecifier -> failure x
-  Grammar.Abs.MatchArmSpecifierHI varident -> failure x
-  Grammar.Abs.MatchArmSpecifierHU -> failure x
+  Grammar.Abs.MatchArmSpecifierH _ matcharmspecifier -> failure x
+  Grammar.Abs.MatchArmSpecifierHI _ varname -> failure x
+  Grammar.Abs.MatchArmSpecifierHU _ -> failure x
 
-transMatchArmSpecifier :: Grammar.Abs.MatchArmSpecifier -> Result
+transMatchArmSpecifier :: Show a => Grammar.Abs.MatchArmSpecifier' a -> Result
 transMatchArmSpecifier x = case x of
-  Grammar.Abs.MatchArmListEmpty -> failure x
-  Grammar.Abs.MatchArmListSingleton matcharmspecifierhelper -> failure x
-  Grammar.Abs.MatchArmListHeadTail matcharmspecifierhelper1 matcharmspecifierhelper2 -> failure x
-  Grammar.Abs.MatchArmType typeident matcharmtypehelpers -> failure x
+  Grammar.Abs.MatchArmListEmpty _ -> failure x
+  Grammar.Abs.MatchArmListSingleton _ matcharmspecifierhelper -> failure x
+  Grammar.Abs.MatchArmListHeadTail _ matcharmspecifierhelper1 matcharmspecifierhelper2 -> failure x
+  Grammar.Abs.MatchArmType _ typename matcharmtypehelpers -> failure x
 
-transMatchArmTypeHelper :: Grammar.Abs.MatchArmTypeHelper -> Result
+transMatchArmTypeHelper :: Show a => Grammar.Abs.MatchArmTypeHelper' a -> Result
 transMatchArmTypeHelper x = case x of
-  Grammar.Abs.MatchArmTypeHelperIdent typeident -> failure x
-  Grammar.Abs.MatchArmTypeHelperFallback -> failure x
-  Grammar.Abs.MatchArmTypeHelperType matcharmspecifier -> failure x
+  Grammar.Abs.MatchArmTypeHelperIdent _ typename -> failure x
+  Grammar.Abs.MatchArmTypeHelperFallback _ -> failure x
+  Grammar.Abs.MatchArmTypeHelperType _ matcharmspecifier -> failure x
 
-transAddOp :: Grammar.Abs.AddOp -> Result
+transAddOp :: Show a => Grammar.Abs.AddOp' a -> Result
 transAddOp x = case x of
-  Grammar.Abs.Plus -> failure x
-  Grammar.Abs.Minus -> failure x
+  Grammar.Abs.Plus _ -> failure x
+  Grammar.Abs.Minus _ -> failure x
 
-transMulOp :: Grammar.Abs.MulOp -> Result
+transMulOp :: Show a => Grammar.Abs.MulOp' a -> Result
 transMulOp x = case x of
-  Grammar.Abs.Times -> failure x
-  Grammar.Abs.Div -> failure x
-  Grammar.Abs.Mod -> failure x
+  Grammar.Abs.Times _ -> failure x
+  Grammar.Abs.Div _ -> failure x
+  Grammar.Abs.Mod _ -> failure x
 
-transRelOp :: Grammar.Abs.RelOp -> Result
+transRelOp :: Show a => Grammar.Abs.RelOp' a -> Result
 transRelOp x = case x of
-  Grammar.Abs.LTH -> failure x
-  Grammar.Abs.LE -> failure x
-  Grammar.Abs.GTH -> failure x
-  Grammar.Abs.GE -> failure x
-  Grammar.Abs.EQU -> failure x
-  Grammar.Abs.NE -> failure x
+  Grammar.Abs.LTH _ -> failure x
+  Grammar.Abs.LE _ -> failure x
+  Grammar.Abs.GTH _ -> failure x
+  Grammar.Abs.GE _ -> failure x
+  Grammar.Abs.EQU _ -> failure x
+  Grammar.Abs.NE _ -> failure x

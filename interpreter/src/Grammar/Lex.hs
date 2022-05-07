@@ -116,8 +116,8 @@ data Tok
   | TV !String                    -- ^ Identifier.
   | TD !String                    -- ^ Float literal.
   | TC !String                    -- ^ Character literal.
-  | T_VarIdent !String
-  | T_TypeIdent !String
+  | T_VarName !String
+  | T_TypeName !String
   | T_PolyIdentToken !String
   deriving (Eq, Show, Ord)
 
@@ -181,8 +181,8 @@ tokenText t = case t of
   PT _ (TD s)   -> s
   PT _ (TC s)   -> s
   Err _         -> "#error"
-  PT _ (T_VarIdent s) -> s
-  PT _ (T_TypeIdent s) -> s
+  PT _ (T_VarName s) -> s
+  PT _ (T_TypeName s) -> s
   PT _ (T_PolyIdentToken s) -> s
 
 -- | Convert a token to a string.
@@ -312,8 +312,8 @@ utf8Encode = map fromIntegral . go . ord
                         , 0x80 + oc Data.Bits..&. 0x3f
                         ]
 alex_action_3 = tok (eitherResIdent TV)
-alex_action_4 = tok (eitherResIdent T_VarIdent)
-alex_action_5 = tok (eitherResIdent T_TypeIdent)
+alex_action_4 = tok (eitherResIdent T_VarName)
+alex_action_5 = tok (eitherResIdent T_TypeName)
 alex_action_6 = tok (eitherResIdent T_PolyIdentToken)
 alex_action_7 = tok (eitherResIdent TV)
 alex_action_8 = tok TI

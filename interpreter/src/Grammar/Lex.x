@@ -28,7 +28,7 @@ $u = [. \n]          -- universal: any character
 
 -- Symbols and non-identifier-like reserved words
 
-@rsyms = \; | \= | \( | \) | \| | \' | \[ | \] | \- \> | \! | \& \& | \\ \/ | \- | \: | \, | \_ | \[ \] | \+ | \* | \/ | \% | \< | \< \= | \> | \> \= | \= \= | \! \=
+@rsyms = \; | \= | \( | \) | \| | \' | \[ | \] | \- \> | \- | \! | \: | \& \& | \\ \/ | \, | \_ | \[ \] | \+ | \* | \/ | \% | \< | \< \= | \> | \> \= | \= \= | \! \=
 
 :-
 
@@ -45,13 +45,13 @@ $white+ ;
 @rsyms
     { tok (eitherResIdent TV) }
 
--- token VarIdent
+-- token VarName
 $s (\_ | ($d | $l)) *
-    { tok (eitherResIdent T_VarIdent) }
+    { tok (eitherResIdent T_VarName) }
 
--- token TypeIdent
+-- token TypeName
 $c (\_ | ($d | $l)) *
-    { tok (eitherResIdent T_TypeIdent) }
+    { tok (eitherResIdent T_TypeName) }
 
 -- token PolyIdentToken
 $s
@@ -78,8 +78,8 @@ data Tok
   | TV !String                    -- ^ Identifier.
   | TD !String                    -- ^ Float literal.
   | TC !String                    -- ^ Character literal.
-  | T_VarIdent !String
-  | T_TypeIdent !String
+  | T_VarName !String
+  | T_TypeName !String
   | T_PolyIdentToken !String
   deriving (Eq, Show, Ord)
 
@@ -143,8 +143,8 @@ tokenText t = case t of
   PT _ (TD s)   -> s
   PT _ (TC s)   -> s
   Err _         -> "#error"
-  PT _ (T_VarIdent s) -> s
-  PT _ (T_TypeIdent s) -> s
+  PT _ (T_VarName s) -> s
+  PT _ (T_TypeName s) -> s
   PT _ (T_PolyIdentToken s) -> s
 
 -- | Convert a token to a string.
