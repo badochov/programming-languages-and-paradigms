@@ -1,0 +1,11 @@
+type Tree = Leaf 'a | Node (Tree 'a) (Tree 'a)
+
+singleton = Leaf [42]
+twovalues = Leaf [6, 9]
+
+t = Node singleton twovalues
+
+second_elements = |t acc| 
+    match t with
+        Leaf (_:(a:_)) -> a : acc
+        Node l r -> let acc = second_elements l acc in second_elements r acc

@@ -1,0 +1,149 @@
+-- programs ------------------------------------------------
+
+entrypoints Program ;
+
+token VarIdent (lower (letter | digit | '_')*) ;
+token TypeIdent (upper (letter | digit | '_')*) ;
+
+Program.   Program ::= [TopDef] ;
+
+TopDefFn.   TopDef ::= VarDef ";";
+TopDefType. TopDef ::= TypeDef ";";
+
+TypeDef.   TypeDef ::= "type" TypeIdent "=" TypeDefOption ;
+
+TypeDefOption. TypeDefOption ::= TypeIdent [TypeH];
+
+TypeDefHCustType. TypeH ::= "(" TypeDefOption ")";
+TypeDefHType. TypeH ::= Type;
+
+VarDef.	   VarDef ::= VarIdent "=" Expr ;
+
+separator  nonempty TopDef "\n" ;
+
+Arg. 	   Arg ::= VarIdent;
+
+separator  Arg " " ;
+
+separator  TypeDefOption "|" ;
+
+separator  TypeH " " ;
+
+-- Types ---------------------------------------------------
+
+token PolyIdentToken lower;
+
+TypeInt.    Type ::= "int";
+TypeBool.   Type ::= "bool";
+TypePoly.   Type ::= "'" PolyIdentToken;
+TypeFn.     Type ::= [TypeFnH] ;
+TypeFnH.     TypeFnH ::= Type ;
+TypeList.   Type ::= "[" Type "]";
+TypePolyFill.   Type ::= TypeIdent [PolyIdent];
+PolyIdent.  PolyIdent ::= Type;
+separator   PolyIdent " ";
+separator   TypeFnH "->";
+
+-- Bool Expressions ----------------------------------------
+
+BEApp.      BExpr4 ::= VarIdent [Expr];
+
+BEBrackets. BExpr4 ::= "(" BExpr ")";
+
+Not.        BExpr3 ::= "!" BExpr4 ;
+
+BERel.      BExpr2 ::= Expr RelOp Expr ;
+
+BEAnd.      BExpr1 ::= BExpr2 "&&" BExpr1 ;
+
+BEOr.       BExpr ::= BExpr1 "\\/" BExpr ;
+
+coercions   BExpr 4 ;
+
+-- Expressions ---------------------------------------------
+
+LambdaExpr. Expr3 ::= "|" [Arg] "|" Expr;
+
+MatchExpr. Expr3 ::= Match;
+
+EBExpr.    Expr3 ::= BExpr;
+
+ELetIn.    Expr3 ::= "let" VarDef "in" Expr ;
+
+ECond.     Expr3 ::= "if" BExpr "then" Expr "else" Expr ;
+
+EApp.      Expr3 ::= Ident [Expr] ;
+
+ELitInt.   Expr3 ::= Integer ;
+
+ELitList.  Expr3 ::= "[" [LArg] "]" ;
+
+EBrackets.  Expr3 ::= "(" Expr ")" ;
+
+Neg.       Expr2 ::= "-" Expr3 ;
+
+EListEx.   Expr2 ::= Expr3 ":" Expr3;
+
+EMul.      Expr1 ::= Expr1 MulOp Expr2 ;
+
+EAdd.      Expr ::= Expr1 AddOp Expr ;
+
+ListArg.   LArg ::= Expr;
+
+coercions  Expr 3 ;
+
+separator  LArg "," ;
+separator  Expr " " ;
+
+-- Pattern Matching ---------------------------------------
+
+Match.                  Match ::= "match" Expr "with" [MatchArm];
+
+MatchArm.           MatchArm ::= MatchArmSpecifier "->" Expr;
+
+MatchArmSpecifierH. MatchArmSpecifierHelper ::= MatchArmSpecifier;
+MatchArmSpecifierHI. MatchArmSpecifierHelper ::= VarIdent;
+MatchArmSpecifierHU. MatchArmSpecifierHelper ::= "_";
+
+MatchArmListEmpty.       MatchArmSpecifier ::= "[]" ;
+MatchArmListSingleton.   MatchArmSpecifier ::= "["MatchArmSpecifierHelper"]" ;
+MatchArmListHeadTail.    MatchArmSpecifier ::= MatchArmSpecifierHelper ":" MatchArmSpecifierHelper;
+
+MatchArmType.                MatchArmSpecifier ::= TypeIdent [MatchArmTypeHelper];
+MatchArmTypeHelperIdent.     MatchArmTypeHelper ::= TypeIdent;
+MatchArmTypeHelperFallback.     MatchArmTypeHelper ::= "_";
+MatchArmTypeHelperType.      MatchArmTypeHelper ::= "(" MatchArmSpecifier ")";
+
+
+separator MatchArm "" ;
+separator MatchArmTypeHelper " " ;
+
+-- operators -----------------------------------------------
+
+Plus.      AddOp ::= "+" ;
+
+Minus.     AddOp ::= "-" ;
+
+Times.     MulOp ::= "*" ;
+
+Div.       MulOp ::= "/" ;
+
+Mod.       MulOp ::= "%" ;
+
+LTH.       RelOp ::= "<" ;
+
+LE.        RelOp ::= "<=" ;
+
+GTH.       RelOp ::= ">" ;
+
+GE.        RelOp ::= ">=" ;
+
+EQU.       RelOp ::= "==" ;
+
+NE.        RelOp ::= "!=" ;
+
+-- comments ------------------------------------------------
+
+comment    "//" ;
+
+comment    "/*" "*/" ;
