@@ -56,17 +56,15 @@ All other symbols are terminals.
 
   | //Program// | -> | //[TopDef]//
   | //TopDef// | -> | //VarDef// ``;``
-  |  |  **|**  | //TypeDef// ``;``
-  | //TypeDef// | -> | ``type`` //TypeName// ``=`` //TypeDefOption//
+  |  |  **|**  | ``type`` //TypeName// ``=`` //[TypeDefOption]// ``;``
   | //TypeDefOption// | -> | //TypeName// //[TypeH]//
   | //TypeH// | -> | ``(`` //TypeDefOption// ``)``
   |  |  **|**  | //Type//
   | //VarDef// | -> | //VarName// ``=`` //Expr//
   | //[TopDef]// | -> | //TopDef//
   |  |  **|**  | //TopDef// //[TopDef]//
-  | //Arg// | -> | //VarName//
-  | //[Arg]// | -> | **eps**
-  |  |  **|**  | //Arg// //[Arg]//
+  | //[VarName]// | -> | **eps**
+  |  |  **|**  | //VarName// //[VarName]//
   | //[TypeDefOption]// | -> | **eps**
   |  |  **|**  | //TypeDefOption//
   |  |  **|**  | //TypeDefOption// ``|`` //[TypeDefOption]//
@@ -75,23 +73,22 @@ All other symbols are terminals.
   | //Type// | -> | ``int``
   |  |  **|**  | ``bool``
   |  |  **|**  | ``'`` //PolyIdentToken//
-  |  |  **|**  | //[TypeFnH]//
+  |  |  **|**  | ``(`` //[TypeFnH]// ``)``
   |  |  **|**  | ``[`` //Type// ``]``
   |  |  **|**  | //TypeName// //[PolyIdent]//
   | //TypeFnH// | -> | //Type//
   | //PolyIdent// | -> | //Type//
-  | //[PolyIdent]// | -> | **eps**
+  | //[PolyIdent]// | -> | //PolyIdent//
   |  |  **|**  | //PolyIdent// //[PolyIdent]//
-  | //[TypeFnH]// | -> | **eps**
-  |  |  **|**  | //TypeFnH//
+  | //[TypeFnH]// | -> | //TypeFnH//
   |  |  **|**  | //TypeFnH// ``->`` //[TypeFnH]//
-  | //Expr6// | -> | ``|`` //[Arg]// ``|`` //Expr//
+  | //Expr6// | -> | ``|`` //[VarName]// ``|`` //Expr//
   |  |  **|**  | //Match//
   |  |  **|**  | ``let`` //VarDef// ``in`` //Expr//
   |  |  **|**  | ``if`` //Expr// ``then`` //Expr// ``else`` //Expr//
-  |  |  **|**  | //FnOrTypeIdent// //[Expr]//
+  |  |  **|**  | //VarOrTypeIdent// //[Expr]//
   |  |  **|**  | //Integer//
-  |  |  **|**  | ``[`` //[LArg]// ``]``
+  |  |  **|**  | ``[`` //[ListArg]// ``]``
   |  |  **|**  | ``(`` //Expr// ``)``
   |  |  **|**  | ``(`` //Expr// ``)``
   | //Expr5// | -> | ``-`` //Expr6//
@@ -108,12 +105,12 @@ All other symbols are terminals.
   |  |  **|**  | //Expr2//
   | //Expr// | -> | //Expr1// ``\/`` //Expr//
   |  |  **|**  | //Expr1//
-  | //LArg// | -> | //Expr//
-  | //FnOrTypeIdent// | -> | //VarName//
+  | //ListArg// | -> | //Expr//
+  | //VarOrTypeIdent// | -> | //VarName//
   |  |  **|**  | //TypeName//
-  | //[LArg]// | -> | **eps**
-  |  |  **|**  | //LArg//
-  |  |  **|**  | //LArg// ``,`` //[LArg]//
+  | //[ListArg]// | -> | **eps**
+  |  |  **|**  | //ListArg//
+  |  |  **|**  | //ListArg// ``,`` //[ListArg]//
   | //[Expr]// | -> | **eps**
   |  |  **|**  | //Expr// //[Expr]//
   | //Match// | -> | ``match`` //Expr// ``with`` //[MatchArm]//

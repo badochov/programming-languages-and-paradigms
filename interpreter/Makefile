@@ -12,6 +12,7 @@ interpreter: src/*.hs
 parser: src/grammar.ebnf
 	-bnfc -d --functor -o src -m --functor src/grammar.ebnf
 	-cd src && make
+	-rm src/Grammar/Test.hs
 
 clean:
 	-cd src && make clean

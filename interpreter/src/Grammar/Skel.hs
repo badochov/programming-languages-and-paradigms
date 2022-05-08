@@ -33,12 +33,8 @@ transProgram x = case x of
 
 transTopDef :: Show a => Grammar.Abs.TopDef' a -> Result
 transTopDef x = case x of
-  Grammar.Abs.TopDefFn _ vardef -> failure x
-  Grammar.Abs.TopDefType _ typedef -> failure x
-
-transTypeDef :: Show a => Grammar.Abs.TypeDef' a -> Result
-transTypeDef x = case x of
-  Grammar.Abs.TypeDef _ typename typedefoption -> failure x
+  Grammar.Abs.TopDefVar _ vardef -> failure x
+  Grammar.Abs.TopDefType _ typename typedefoptions -> failure x
 
 transTypeDefOption :: Show a => Grammar.Abs.TypeDefOption' a -> Result
 transTypeDefOption x = case x of
@@ -52,10 +48,6 @@ transTypeH x = case x of
 transVarDef :: Show a => Grammar.Abs.VarDef' a -> Result
 transVarDef x = case x of
   Grammar.Abs.VarDef _ varname expr -> failure x
-
-transArg :: Show a => Grammar.Abs.Arg' a -> Result
-transArg x = case x of
-  Grammar.Abs.Arg _ varname -> failure x
 
 transType :: Show a => Grammar.Abs.Type' a -> Result
 transType x = case x of
@@ -76,13 +68,13 @@ transPolyIdent x = case x of
 
 transExpr :: Show a => Grammar.Abs.Expr' a -> Result
 transExpr x = case x of
-  Grammar.Abs.LambdaExpr _ args expr -> failure x
+  Grammar.Abs.LambdaExpr _ varnames expr -> failure x
   Grammar.Abs.MatchExpr _ match -> failure x
   Grammar.Abs.ELetIn _ vardef expr -> failure x
   Grammar.Abs.ECond _ expr1 expr2 expr3 -> failure x
-  Grammar.Abs.EApp _ fnortypeident exprs -> failure x
+  Grammar.Abs.EApp _ varortypeident exprs -> failure x
   Grammar.Abs.ELitInt _ integer -> failure x
-  Grammar.Abs.ELitList _ largs -> failure x
+  Grammar.Abs.ELitList _ listargs -> failure x
   Grammar.Abs.EBrackets _ expr -> failure x
   Grammar.Abs.Neg _ expr -> failure x
   Grammar.Abs.Not _ expr -> failure x
@@ -93,12 +85,12 @@ transExpr x = case x of
   Grammar.Abs.EAnd _ expr1 expr2 -> failure x
   Grammar.Abs.EOr _ expr1 expr2 -> failure x
 
-transLArg :: Show a => Grammar.Abs.LArg' a -> Result
-transLArg x = case x of
+transListArg :: Show a => Grammar.Abs.ListArg' a -> Result
+transListArg x = case x of
   Grammar.Abs.ListArg _ expr -> failure x
 
-transFnOrTypeIdent :: Show a => Grammar.Abs.FnOrTypeIdent' a -> Result
-transFnOrTypeIdent x = case x of
+transVarOrTypeIdent :: Show a => Grammar.Abs.VarOrTypeIdent' a -> Result
+transVarOrTypeIdent x = case x of
   Grammar.Abs.VarIdent _ varname -> failure x
   Grammar.Abs.TypeIdent _ typename -> failure x
 

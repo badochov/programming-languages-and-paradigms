@@ -150,12 +150,8 @@ instance Print (Grammar.Abs.Program' a) where
 
 instance Print (Grammar.Abs.TopDef' a) where
   prt i = \case
-    Grammar.Abs.TopDefFn _ vardef -> prPrec i 0 (concatD [prt 0 vardef, doc (showString ";")])
-    Grammar.Abs.TopDefType _ typedef -> prPrec i 0 (concatD [prt 0 typedef, doc (showString ";")])
-
-instance Print (Grammar.Abs.TypeDef' a) where
-  prt i = \case
-    Grammar.Abs.TypeDef _ typename typedefoption -> prPrec i 0 (concatD [doc (showString "type"), prt 0 typename, doc (showString "="), prt 0 typedefoption])
+    Grammar.Abs.TopDefVar _ vardef -> prPrec i 0 (concatD [prt 0 vardef, doc (showString ";")])
+    Grammar.Abs.TopDefType _ typename typedefoptions -> prPrec i 0 (concatD [doc (showString "type"), prt 0 typename, doc (showString "="), prt 0 typedefoptions, doc (showString ";")])
 
 instance Print (Grammar.Abs.TypeDefOption' a) where
   prt i = \case
@@ -175,11 +171,7 @@ instance Print [Grammar.Abs.TopDef' a] where
   prt _ [x] = concatD [prt 0 x, doc (showString "\n")]
   prt _ (x:xs) = concatD [prt 0 x, doc (showString "\n"), prt 0 xs]
 
-instance Print (Grammar.Abs.Arg' a) where
-  prt i = \case
-    Grammar.Abs.Arg _ varname -> prPrec i 0 (concatD [prt 0 varname])
-
-instance Print [Grammar.Abs.Arg' a] where
+instance Print [Grammar.Abs.VarName] where
   prt _ [] = concatD []
   prt _ (x:xs) = concatD [prt 0 x, doc (showString " "), prt 0 xs]
 
@@ -197,7 +189,7 @@ instance Print (Grammar.Abs.Type' a) where
     Grammar.Abs.TypeInt _ -> prPrec i 0 (concatD [doc (showString "int")])
     Grammar.Abs.TypeBool _ -> prPrec i 0 (concatD [doc (showString "bool")])
     Grammar.Abs.TypePoly _ polyidenttoken -> prPrec i 0 (concatD [doc (showString "'"), prt 0 polyidenttoken])
-    Grammar.Abs.TypeFn _ typefnhs -> prPrec i 0 (concatD [prt 0 typefnhs])
+    Grammar.Abs.TypeFn _ typefnhs -> prPrec i 0 (concatD [doc (showString "("), prt 0 typefnhs, doc (showString ")")])
     Grammar.Abs.TypeList _ type_ -> prPrec i 0 (concatD [doc (showString "["), prt 0 type_, doc (showString "]")])
     Grammar.Abs.TypePolyFill _ typename polyidents -> prPrec i 0 (concatD [prt 0 typename, prt 0 polyidents])
 
@@ -211,6 +203,7 @@ instance Print (Grammar.Abs.PolyIdent' a) where
 
 instance Print [Grammar.Abs.PolyIdent' a] where
   prt _ [] = concatD []
+  prt _ [x] = concatD [prt 0 x, doc (showString " ")]
   prt _ (x:xs) = concatD [prt 0 x, doc (showString " "), prt 0 xs]
 
 instance Print [Grammar.Abs.TypeFnH' a] where
@@ -220,13 +213,13 @@ instance Print [Grammar.Abs.TypeFnH' a] where
 
 instance Print (Grammar.Abs.Expr' a) where
   prt i = \case
-    Grammar.Abs.LambdaExpr _ args expr -> prPrec i 6 (concatD [doc (showString "|"), prt 0 args, doc (showString "|"), prt 0 expr])
+    Grammar.Abs.LambdaExpr _ varnames expr -> prPrec i 6 (concatD [doc (showString "|"), prt 0 varnames, doc (showString "|"), prt 0 expr])
     Grammar.Abs.MatchExpr _ match -> prPrec i 6 (concatD [prt 0 match])
     Grammar.Abs.ELetIn _ vardef expr -> prPrec i 6 (concatD [doc (showString "let"), prt 0 vardef, doc (showString "in"), prt 0 expr])
     Grammar.Abs.ECond _ expr1 expr2 expr3 -> prPrec i 6 (concatD [doc (showString "if"), prt 0 expr1, doc (showString "then"), prt 0 expr2, doc (showString "else"), prt 0 expr3])
-    Grammar.Abs.EApp _ fnortypeident exprs -> prPrec i 6 (concatD [prt 0 fnortypeident, prt 0 exprs])
+    Grammar.Abs.EApp _ varortypeident exprs -> prPrec i 6 (concatD [prt 0 varortypeident, prt 0 exprs])
     Grammar.Abs.ELitInt _ n -> prPrec i 6 (concatD [prt 0 n])
-    Grammar.Abs.ELitList _ largs -> prPrec i 6 (concatD [doc (showString "["), prt 0 largs, doc (showString "]")])
+    Grammar.Abs.ELitList _ listargs -> prPrec i 6 (concatD [doc (showString "["), prt 0 listargs, doc (showString "]")])
     Grammar.Abs.EBrackets _ expr -> prPrec i 6 (concatD [doc (showString "("), prt 0 expr, doc (showString ")")])
     Grammar.Abs.Neg _ expr -> prPrec i 5 (concatD [doc (showString "-"), prt 6 expr])
     Grammar.Abs.Not _ expr -> prPrec i 5 (concatD [doc (showString "!"), prt 6 expr])
@@ -237,16 +230,16 @@ instance Print (Grammar.Abs.Expr' a) where
     Grammar.Abs.EAnd _ expr1 expr2 -> prPrec i 1 (concatD [prt 2 expr1, doc (showString "&&"), prt 1 expr2])
     Grammar.Abs.EOr _ expr1 expr2 -> prPrec i 0 (concatD [prt 1 expr1, doc (showString "\\/"), prt 0 expr2])
 
-instance Print (Grammar.Abs.LArg' a) where
+instance Print (Grammar.Abs.ListArg' a) where
   prt i = \case
     Grammar.Abs.ListArg _ expr -> prPrec i 0 (concatD [prt 0 expr])
 
-instance Print (Grammar.Abs.FnOrTypeIdent' a) where
+instance Print (Grammar.Abs.VarOrTypeIdent' a) where
   prt i = \case
     Grammar.Abs.VarIdent _ varname -> prPrec i 0 (concatD [prt 0 varname])
     Grammar.Abs.TypeIdent _ typename -> prPrec i 0 (concatD [prt 0 typename])
 
-instance Print [Grammar.Abs.LArg' a] where
+instance Print [Grammar.Abs.ListArg' a] where
   prt _ [] = concatD []
   prt _ [x] = concatD [prt 0 x]
   prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]

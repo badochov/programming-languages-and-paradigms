@@ -85,12 +85,8 @@ Program
 
 TopDef :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.TopDef) }
 TopDef
-  : VarDef ';' { (fst $1, Grammar.Abs.TopDefFn (fst $1) (snd $1)) }
-  | TypeDef ';' { (fst $1, Grammar.Abs.TopDefType (fst $1) (snd $1)) }
-
-TypeDef :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.TypeDef) }
-TypeDef
-  : 'type' TypeName '=' TypeDefOption { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.TypeDef (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
+  : VarDef ';' { (fst $1, Grammar.Abs.TopDefVar (fst $1) (snd $1)) }
+  | 'type' TypeName '=' ListTypeDefOption ';' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.TopDefType (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
 
 TypeDefOption :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.TypeDefOption) }
 TypeDefOption
@@ -110,13 +106,10 @@ ListTopDef
   : TopDef { (fst $1, (:[]) (snd $1)) }
   | TopDef ListTopDef { (fst $1, (:) (snd $1) (snd $2)) }
 
-Arg :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.Arg) }
-Arg : VarName { (fst $1, Grammar.Abs.Arg (fst $1) (snd $1)) }
-
-ListArg :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.Arg]) }
-ListArg
+ListVarName :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.VarName]) }
+ListVarName
   : {- empty -} { (Grammar.Abs.BNFC'NoPosition, []) }
-  | Arg ListArg { (fst $1, (:) (snd $1) (snd $2)) }
+  | VarName ListVarName { (fst $1, (:) (snd $1) (snd $2)) }
 
 ListTypeDefOption :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.TypeDefOption]) }
 ListTypeDefOption
@@ -134,7 +127,7 @@ Type
   : 'int' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.TypeInt (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1))) }
   | 'bool' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.TypeBool (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1))) }
   | '\'' PolyIdentToken { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.TypePoly (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
-  | ListTypeFnH { (fst $1, Grammar.Abs.TypeFn (fst $1) (snd $1)) }
+  | '(' ListTypeFnH ')' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.TypeFn (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
   | '[' Type ']' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.TypeList (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
   | TypeName ListPolyIdent { (fst $1, Grammar.Abs.TypePolyFill (fst $1) (snd $1) (snd $2)) }
 
@@ -147,24 +140,23 @@ PolyIdent
 
 ListPolyIdent :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.PolyIdent]) }
 ListPolyIdent
-  : {- empty -} { (Grammar.Abs.BNFC'NoPosition, []) }
+  : PolyIdent { (fst $1, (:[]) (snd $1)) }
   | PolyIdent ListPolyIdent { (fst $1, (:) (snd $1) (snd $2)) }
 
 ListTypeFnH :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.TypeFnH]) }
 ListTypeFnH
-  : {- empty -} { (Grammar.Abs.BNFC'NoPosition, []) }
-  | TypeFnH { (fst $1, (:[]) (snd $1)) }
+  : TypeFnH { (fst $1, (:[]) (snd $1)) }
   | TypeFnH '->' ListTypeFnH { (fst $1, (:) (snd $1) (snd $3)) }
 
 Expr6 :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.Expr) }
 Expr6
-  : '|' ListArg '|' Expr { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.LambdaExpr (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
+  : '|' ListVarName '|' Expr { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.LambdaExpr (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
   | Match { (fst $1, Grammar.Abs.MatchExpr (fst $1) (snd $1)) }
   | 'let' VarDef 'in' Expr { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.ELetIn (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
   | 'if' Expr 'then' Expr 'else' Expr { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.ECond (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4) (snd $6)) }
-  | FnOrTypeIdent ListExpr { (fst $1, Grammar.Abs.EApp (fst $1) (snd $1) (snd $2)) }
+  | VarOrTypeIdent ListExpr { (fst $1, Grammar.Abs.EApp (fst $1) (snd $1) (snd $2)) }
   | Integer { (fst $1, Grammar.Abs.ELitInt (fst $1) (snd $1)) }
-  | '[' ListLArg ']' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.ELitList (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
+  | '[' ListListArg ']' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.ELitList (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
   | '(' Expr ')' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), Grammar.Abs.EBrackets (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
   | '(' Expr ')' { (uncurry Grammar.Abs.BNFC'Position (tokenLineCol $1), (snd $2)) }
 
@@ -200,19 +192,19 @@ Expr
   : Expr1 '\\/' Expr { (fst $1, Grammar.Abs.EOr (fst $1) (snd $1) (snd $3)) }
   | Expr1 { (fst $1, (snd $1)) }
 
-LArg :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.LArg) }
-LArg : Expr { (fst $1, Grammar.Abs.ListArg (fst $1) (snd $1)) }
+ListArg :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.ListArg) }
+ListArg : Expr { (fst $1, Grammar.Abs.ListArg (fst $1) (snd $1)) }
 
-FnOrTypeIdent :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.FnOrTypeIdent) }
-FnOrTypeIdent
+VarOrTypeIdent :: { (Grammar.Abs.BNFC'Position, Grammar.Abs.VarOrTypeIdent) }
+VarOrTypeIdent
   : VarName { (fst $1, Grammar.Abs.VarIdent (fst $1) (snd $1)) }
   | TypeName { (fst $1, Grammar.Abs.TypeIdent (fst $1) (snd $1)) }
 
-ListLArg :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.LArg]) }
-ListLArg
+ListListArg :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.ListArg]) }
+ListListArg
   : {- empty -} { (Grammar.Abs.BNFC'NoPosition, []) }
-  | LArg { (fst $1, (:[]) (snd $1)) }
-  | LArg ',' ListLArg { (fst $1, (:) (snd $1) (snd $3)) }
+  | ListArg { (fst $1, (:[]) (snd $1)) }
+  | ListArg ',' ListListArg { (fst $1, (:) (snd $1) (snd $3)) }
 
 ListExpr :: { (Grammar.Abs.BNFC'Position, [Grammar.Abs.Expr]) }
 ListExpr

@@ -7,10 +7,8 @@ token TypeName (upper (letter | digit | '_')*) ;
 
 Program.   Program ::= [TopDef] ;
 
-TopDefFn.   TopDef ::= VarDef ";";
-TopDefType. TopDef ::= TypeDef ";";
-
-TypeDef.   TypeDef ::= "type" TypeName "=" TypeDefOption ;
+TopDefVar.   TopDef ::= VarDef ";";
+TopDefType. TopDef ::= "type" TypeName "=" [TypeDefOption] ";";
 
 TypeDefOption. TypeDefOption ::= TypeName [TypeH];
 
@@ -21,9 +19,7 @@ VarDef.	   VarDef ::= VarName "=" Expr ;
 
 separator  nonempty TopDef "\n" ;
 
-Arg. 	   Arg ::= VarName;
-
-separator  Arg " " ;
+separator  VarName " " ;
 
 separator  TypeDefOption "|" ;
 
@@ -36,17 +32,17 @@ token PolyIdentToken lower;
 TypeInt.    Type ::= "int";
 TypeBool.   Type ::= "bool";
 TypePoly.   Type ::= "'" PolyIdentToken;
-TypeFn.     Type ::= [TypeFnH] ;
+TypeFn.     Type ::= "(" [TypeFnH] ")";
 TypeFnH.     TypeFnH ::= Type ;
 TypeList.   Type ::= "[" Type "]";
 TypePolyFill.   Type ::= TypeName [PolyIdent];
 PolyIdent.  PolyIdent ::= Type;
-separator   PolyIdent " ";
-separator   TypeFnH "->";
+separator   nonempty PolyIdent " ";
+separator   nonempty TypeFnH "->";
 
 -- Expressions ---------------------------------------------
 
-LambdaExpr. Expr6 ::= "|" [Arg] "|" Expr;
+LambdaExpr. Expr6 ::= "|" [VarName] "|" Expr;
 
 MatchExpr. Expr6 ::= Match;
 
@@ -54,11 +50,11 @@ ELetIn.    Expr6 ::= "let" VarDef "in" Expr ;
 
 ECond.     Expr6 ::= "if" Expr "then" Expr "else" Expr ;
 
-EApp.      Expr6 ::= FnOrTypeIdent [Expr] ;
+EApp.      Expr6 ::= VarOrTypeIdent [Expr] ;
 
 ELitInt.   Expr6 ::= Integer ;
 
-ELitList.  Expr6 ::= "[" [LArg] "]" ;
+ELitList.  Expr6 ::= "[" [ListArg] "]" ;
 
 EBrackets.  Expr6 ::= "(" Expr ")" ;
 
@@ -78,19 +74,19 @@ EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
 
 EOr.       Expr ::= Expr1 "\\/" Expr ;
 
-ListArg.   LArg ::= Expr;
+ListArg.   ListArg ::= Expr;
 
-VarIdent.  FnOrTypeIdent ::= VarName;
-TypeIdent.  FnOrTypeIdent ::= TypeName;
+VarIdent.  VarOrTypeIdent ::= VarName;
+TypeIdent.  VarOrTypeIdent ::= TypeName;
 
 coercions  Expr 6 ;
 
-separator  LArg "," ;
+separator  ListArg "," ;
 separator  Expr " " ;
 
 -- Pattern Matching ---------------------------------------
 
-Match.                  Match ::= "match" Expr "with" [MatchArm];
+Match.              Match ::= "match" Expr "with" [MatchArm];
 
 MatchArm.           MatchArm ::= MatchArmSpecifier "->" Expr;
 

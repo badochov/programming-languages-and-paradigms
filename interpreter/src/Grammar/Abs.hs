@@ -23,11 +23,9 @@ data Program' a = Program a [TopDef' a]
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type TopDef = TopDef' BNFC'Position
-data TopDef' a = TopDefFn a (VarDef' a) | TopDefType a (TypeDef' a)
-  deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
-
-type TypeDef = TypeDef' BNFC'Position
-data TypeDef' a = TypeDef a TypeName (TypeDefOption' a)
+data TopDef' a
+    = TopDefVar a (VarDef' a)
+    | TopDefType a TypeName [TypeDefOption' a]
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type TypeDefOption = TypeDefOption' BNFC'Position
@@ -41,10 +39,6 @@ data TypeH' a
 
 type VarDef = VarDef' BNFC'Position
 data VarDef' a = VarDef a VarName (Expr' a)
-  deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
-
-type Arg = Arg' BNFC'Position
-data Arg' a = Arg a VarName
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type Type = Type' BNFC'Position
@@ -67,13 +61,13 @@ data PolyIdent' a = PolyIdent a (Type' a)
 
 type Expr = Expr' BNFC'Position
 data Expr' a
-    = LambdaExpr a [Arg' a] (Expr' a)
+    = LambdaExpr a [VarName] (Expr' a)
     | MatchExpr a (Match' a)
     | ELetIn a (VarDef' a) (Expr' a)
     | ECond a (Expr' a) (Expr' a) (Expr' a)
-    | EApp a (FnOrTypeIdent' a) [Expr' a]
+    | EApp a (VarOrTypeIdent' a) [Expr' a]
     | ELitInt a Integer
-    | ELitList a [LArg' a]
+    | ELitList a [ListArg' a]
     | EBrackets a (Expr' a)
     | Neg a (Expr' a)
     | Not a (Expr' a)
@@ -85,12 +79,12 @@ data Expr' a
     | EOr a (Expr' a) (Expr' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
-type LArg = LArg' BNFC'Position
-data LArg' a = ListArg a (Expr' a)
+type ListArg = ListArg' BNFC'Position
+data ListArg' a = ListArg a (Expr' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
-type FnOrTypeIdent = FnOrTypeIdent' BNFC'Position
-data FnOrTypeIdent' a = VarIdent a VarName | TypeIdent a TypeName
+type VarOrTypeIdent = VarOrTypeIdent' BNFC'Position
+data VarOrTypeIdent' a = VarIdent a VarName | TypeIdent a TypeName
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type Match = Match' BNFC'Position
@@ -165,12 +159,8 @@ instance HasPosition Program where
 
 instance HasPosition TopDef where
   hasPosition = \case
-    TopDefFn p _ -> p
-    TopDefType p _ -> p
-
-instance HasPosition TypeDef where
-  hasPosition = \case
-    TypeDef p _ _ -> p
+    TopDefVar p _ -> p
+    TopDefType p _ _ -> p
 
 instance HasPosition TypeDefOption where
   hasPosition = \case
@@ -184,10 +174,6 @@ instance HasPosition TypeH where
 instance HasPosition VarDef where
   hasPosition = \case
     VarDef p _ _ -> p
-
-instance HasPosition Arg where
-  hasPosition = \case
-    Arg p _ -> p
 
 instance HasPosition Type where
   hasPosition = \case
@@ -225,11 +211,11 @@ instance HasPosition Expr where
     EAnd p _ _ -> p
     EOr p _ _ -> p
 
-instance HasPosition LArg where
+instance HasPosition ListArg where
   hasPosition = \case
     ListArg p _ -> p
 
-instance HasPosition FnOrTypeIdent where
+instance HasPosition VarOrTypeIdent where
   hasPosition = \case
     VarIdent p _ -> p
     TypeIdent p _ -> p

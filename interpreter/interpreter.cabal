@@ -30,7 +30,6 @@ library
       Grammar.Par
       Grammar.Print
       Grammar.Skel
-      Grammar.Test
       Interpreter
   other-modules:
       Paths_interpreter
@@ -52,7 +51,6 @@ executable interpreter-exe
       Grammar.Par
       Grammar.Print
       Grammar.Skel
-      Grammar.Test
       Interpreter
       Paths_interpreter
   hs-source-dirs:

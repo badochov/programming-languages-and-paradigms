@@ -1,15 +1,11 @@
 -- | Program to test parser.
 module Main where
 
-import Control.Monad (when)
 import Grammar.Abs (Program)
-import Grammar.Lex (Token, mkPosToken)
 import Grammar.Par (myLexer, pProgram)
-import Grammar.Print (Print, printTree)
 import Grammar.Skel ()
 import Interpreter (StateType, Value, interpret)
 import System.Environment (getArgs)
-import System.Exit (exitFailure)
 import System.IO (hPrint, stderr)
 
 type Handler = Program -> IO ((Either String Value, [String]), StateType)
@@ -26,13 +22,13 @@ run p s =
     Left err -> handleErr err
     Right expr -> handleOk expr
   where
-    lex = myLexer s
-    tok = pProgram lex
+    lexed = myLexer s
+    tok = pProgram lexed
     handleErr = hPrint stderr
-    handleOk expr = do
-      ((res, log), state) <- interpret expr
+    handleOk program = do 
+      ((res, interpreterLog), state) <- p program
       print state
-      print log
+      print interpreterLog
       case res of
         Left err -> handleErr err
         Right r -> print r
