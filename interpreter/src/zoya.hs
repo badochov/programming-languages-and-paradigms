@@ -1,10 +1,11 @@
 -- | Program to test parser.
 module Main where
 
+import Common (preprocess)
 import Grammar.Abs (Program)
 import Grammar.Par (myLexer, pProgram)
 import Grammar.Skel ()
-import Interpreter (StateType (stack), Value, interpret, newState, Stack (st))
+import Interpreter (Stack (st), StateType (stack), Value, interpret, newState)
 import System.Environment (getArgs)
 import System.IO (hPrint, stderr)
 
@@ -25,14 +26,15 @@ run p s =
     lexed = myLexer s
     tok = pProgram lexed
     handleErr = hPrint stderr
-    handleOk program = 
-      let ((res, interpreterLog), state) = p program in
-      do 
-        -- print state
-        print interpreterLog
-        case res of
-          Left err -> handleErr err
-          Right r -> print r
+    handleOk program =
+      let preprocessed = preprocess program
+          ((res, interpreterLog), state) = p preprocessed
+       in do
+            -- print state
+            print interpreterLog
+            case res of
+              Left err -> handleErr err
+              Right r -> print r
 
 usage :: IO ()
 usage = do

@@ -25,7 +25,7 @@ data StateType = StateType
 
 type Eval a = ReaderT Env (ExceptT String (WriterT [String] (StateT StateType Identity))) a
 
-data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool deriving (Show)
+data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType String [Int] deriving (Show)
 
 type StackValue = (Expr, BNFC'Position, Env)
 
@@ -84,16 +84,16 @@ evalExpr (EFApp pos fnName args) = do
       res <- local (const env) (evalExpr expr)
       let applyArgs val [] = return val
           applyArgs val (h : t) = case val of
-                  FunVal fEnv argName expr -> do
-                    state <- get
-                    put $ state {stack = addToStack (stack state) h pos outerEnv}
-                    val <- local (const (Map.insert argName (top $ stack state) fEnv)) (evalExpr expr)
-                    applyArgs val t
-                  _ -> throwError $ typeErr pos
+            FunVal fEnv argName expr -> do
+              state <- get
+              put $ state {stack = addToStack (stack state) h pos outerEnv}
+              val <- local (const (Map.insert argName (top $ stack state) fEnv)) (evalExpr expr)
+              applyArgs val t
+            _ -> throwError $ typeErr pos
       applyArgs res args
 evalExpr (ETApp pos tName args) = throwError "Not implemneted"
 evalExpr (ELitInt _ int) = return $ IntVal int
-evalExpr (ELitList pos listArgs) = throwError "Not implemneted"
+evalExpr (ELitList pos listArgs) = throwError "should have been preprocessed"
 evalExpr (EBrackets pos expr) = evalExpr expr
 evalExpr (Neg pos expr) = do
   val <- evalExpr expr
@@ -105,7 +105,7 @@ evalExpr (Not pos expr) = do
   case val of
     BoolVal b -> return $ BoolVal (not b)
     _ -> throwError $ typeErr pos
-evalExpr (EListEx pos headExpr tailExpr) = throwError "Not implemneted"
+evalExpr (EListEx pos headExpr tailExpr) = throwError "should have been preprocessed"
 evalExpr (EMul pos lExpr mulOp rExpr) = do
   lVal <- evalExpr lExpr
   rVal <- evalExpr rExpr
