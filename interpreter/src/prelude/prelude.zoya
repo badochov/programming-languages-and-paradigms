@@ -1,1 +1,3 @@
-type List = Node int (List) | Empty;
+type List = Node Int (List) | Empty;
+true = 0 == 0
+false = 0 == 1

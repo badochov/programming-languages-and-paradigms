@@ -6,8 +6,8 @@ full:
 	-make parser
 	-make interpreter
 
-interpreter: src/*.hs
-	-cd src && ghc zoya.hs -o ../interpreter
+interpreter: src/zoya.hs src/Interpreter.hs src/Grammar/Abs.hs
+	-cd src && ghc -Wall zoya.hs -o ../interpreter
 
 parser: src/grammar.ebnf
 	-bnfc -d --functor -o src -m --functor src/grammar.ebnf

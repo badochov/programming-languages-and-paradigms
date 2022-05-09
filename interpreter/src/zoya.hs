@@ -4,11 +4,11 @@ module Main where
 import Grammar.Abs (Program)
 import Grammar.Par (myLexer, pProgram)
 import Grammar.Skel ()
-import Interpreter (StateType, Value, interpret)
+import Interpreter (StateType (stack), Value, interpret, newState, Stack (st))
 import System.Environment (getArgs)
 import System.IO (hPrint, stderr)
 
-type Handler = Program -> IO ((Either String Value, [String]), StateType)
+type Handler = Program -> ((Either String Value, [String]), StateType)
 
 runFile :: Handler -> FilePath -> IO ()
 runFile p f = putStrLn f >> readFile f >>= run p
@@ -25,13 +25,14 @@ run p s =
     lexed = myLexer s
     tok = pProgram lexed
     handleErr = hPrint stderr
-    handleOk program = do 
-      ((res, interpreterLog), state) <- p program
-      print state
-      print interpreterLog
-      case res of
-        Left err -> handleErr err
-        Right r -> print r
+    handleOk program = 
+      let ((res, interpreterLog), state) = p program in
+      do 
+        -- print state
+        print interpreterLog
+        case res of
+          Left err -> handleErr err
+          Right r -> print r
 
 usage :: IO ()
 usage = do

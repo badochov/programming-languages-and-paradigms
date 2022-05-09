@@ -7,7 +7,7 @@ token TypeName (upper (letter | digit | '_')*) ;
 
 Program.   Program ::= [TopDef] ;
 
-TopDefVar.   TopDef ::= VarDef ";";
+TopDefVar.   TopDef ::= VarDef ";" ;
 TopDefType. TopDef ::= "type" TypeName "=" [TypeDefOption] ";";
 
 TypeDefOption. TypeDefOption ::= TypeName [TypeH];
@@ -19,8 +19,6 @@ VarDef.	   VarDef ::= VarName "=" Expr ;
 
 separator  nonempty TopDef "\n" ;
 
-separator  VarName " " ;
-
 separator  TypeDefOption "|" ;
 
 separator  TypeH " " ;
@@ -29,8 +27,8 @@ separator  TypeH " " ;
 
 token PolyIdentToken lower;
 
-TypeInt.    Type ::= "int";
-TypeBool.   Type ::= "bool";
+TypeInt.    Type ::= "Int";
+TypeBool.   Type ::= "Bool";
 TypePoly.   Type ::= "'" PolyIdentToken;
 TypeFn.     Type ::= "(" [TypeFnH] ")";
 TypeFnH.     TypeFnH ::= Type ;
@@ -42,21 +40,26 @@ separator   nonempty TypeFnH "->";
 
 -- Expressions ---------------------------------------------
 
-LambdaExpr. Expr6 ::= "|" [VarName] "|" Expr;
+EFApp.      Expr7 ::= VarName [Expr8] ;
+
+ETApp.      Expr7 ::= TypeName [Expr8] ;
+
+EVar.      Expr8 ::= VarName;
+EType.     Expr8 ::= TypeName;
+
+ELitInt.   Expr8 ::= Integer ;
+
+ELitList.  Expr8 ::= "[" [ListArg] "]" ;
+
+EBrackets.  Expr8 ::= "(" Expr ")" ;
+
+LambdaExpr. Expr6 ::= "|" VarName "|" Expr;
 
 MatchExpr. Expr6 ::= Match;
 
 ELetIn.    Expr6 ::= "let" VarDef "in" Expr ;
 
 ECond.     Expr6 ::= "if" Expr "then" Expr "else" Expr ;
-
-EApp.      Expr6 ::= VarOrTypeIdent [Expr] ;
-
-ELitInt.   Expr6 ::= Integer ;
-
-ELitList.  Expr6 ::= "[" [ListArg] "]" ;
-
-EBrackets.  Expr6 ::= "(" Expr ")" ;
 
 Neg.       Expr5 ::= "-" Expr6 ;
 
@@ -74,15 +77,11 @@ EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
 
 EOr.       Expr ::= Expr1 "\\/" Expr ;
 
+coercions  Expr 9 ;
+
 ListArg.   ListArg ::= Expr;
-
-VarIdent.  VarOrTypeIdent ::= VarName;
-TypeIdent.  VarOrTypeIdent ::= TypeName;
-
-coercions  Expr 6 ;
-
 separator  ListArg "," ;
-separator  Expr " " ;
+separator  nonempty Expr8 " " ;
 
 -- Pattern Matching ---------------------------------------
 
@@ -95,12 +94,11 @@ MatchArmSpecifierHI. MatchArmSpecifierHelper ::= VarName;
 MatchArmSpecifierHU. MatchArmSpecifierHelper ::= "_";
 
 MatchArmListEmpty.       MatchArmSpecifier ::= "[]" ;
-MatchArmListSingleton.   MatchArmSpecifier ::= "["MatchArmSpecifierHelper"]" ;
 MatchArmListHeadTail.    MatchArmSpecifier ::= MatchArmSpecifierHelper ":" MatchArmSpecifierHelper;
 
 MatchArmType.                MatchArmSpecifier ::= TypeName [MatchArmTypeHelper];
 MatchArmTypeHelperIdent.     MatchArmTypeHelper ::= TypeName;
-MatchArmTypeHelperFallback.     MatchArmTypeHelper ::= "_";
+MatchArmTypeHelperFallback.  MatchArmTypeHelper ::= "_";
 MatchArmTypeHelperType.      MatchArmTypeHelper ::= "(" MatchArmSpecifier ")";
 
 

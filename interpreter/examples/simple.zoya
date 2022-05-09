@@ -1,0 +1,5 @@
+id = |x| x;
+times9 = |x| x * 9;
+add = |x||y| x + y;
+
+main = let fiftyFour = times9 6 in if fiftyFour == 9 * id (add 5 1) then 1 == 1 else 0 == 1;
