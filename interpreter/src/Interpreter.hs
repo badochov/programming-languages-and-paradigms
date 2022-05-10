@@ -13,7 +13,7 @@ import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
 
-type ZoyaType = String -- placeholder
+data ZoyaType = ZoyaType TypeName | ZoyaTypeVariant TypeName TypeName Int deriving Show
 
 type Env = Map.Map VarName Int
 
@@ -49,15 +49,16 @@ getDefs [] = ask
 
 evalTopDef :: TopDef -> Eval Env
 evalTopDef (TopDefVar _ varDef) = evalVarDef varDef
-evalTopDef (TopDefType _ _name _opts) = throwError "Not implemented"
+evalTopDef (TopDefType pos name opts) = throwError "Not implemented"
 
 evalVarDef :: VarDef -> Eval Env
 evalVarDef (VarDef pos name expr) = do
   state <- get
   let curStack = stack state
   env <- ask
-  put $ state {stack = addToStack curStack expr pos env}
-  asks (Map.insert name (top curStack))
+  let env' = Map.insert name (top curStack) env
+  put $ state {stack = addToStack curStack expr pos env'}
+  return env'
 
 evalExpr :: Expr -> Eval Value
 evalExpr (LambdaExpr pos argName expr) = do
