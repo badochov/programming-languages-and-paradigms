@@ -2,3 +2,5 @@
 /src/Makefile
 interpreter
 /**/*.bak
+/.vscode
+/.idea
