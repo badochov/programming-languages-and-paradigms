@@ -9,8 +9,8 @@ full:
 interpreter: src/zoya.hs src/Interpreter.hs src/Grammar/Abs.hs
 	-cd src && ghc -Wall zoya.hs -o ../interpreter
 
-parser: src/grammar.ebnf
-	-bnfc -d --functor -o src -m --functor src/grammar.ebnf
+parser: src/grammar.cf
+	-bnfc -d --functor -o src -m src/grammar.cf
 	-cd src && make
 	-rm src/Grammar/Test.hs
 

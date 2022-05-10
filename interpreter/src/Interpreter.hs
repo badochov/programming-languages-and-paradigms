@@ -3,7 +3,7 @@ module Interpreter where
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
-import Control.Monad.State (MonadState (get, put), State, StateT (runStateT), modify)
+import Control.Monad.State (MonadState (get, put, state), State, StateT (runStateT), modify)
 import Control.Monad.Writer (MonadWriter (tell), WriterT (runWriterT))
 import Data.Map ((!))
 import qualified Data.Map as Map
@@ -13,7 +13,7 @@ import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
 
-data ZoyaType = ZoyaType TypeName | ZoyaTypeVariant TypeName TypeName Int deriving Show
+data ZoyaType = ZoyaType TypeName Int deriving (Show)
 
 type Env = Map.Map VarName Int
 
@@ -25,7 +25,7 @@ data StateType = StateType
 
 type Eval a = ReaderT Env (ExceptT String (WriterT [String] (StateT StateType Identity))) a
 
-data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType String [Int] deriving (Show)
+data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType String Int deriving (Show)
 
 type StackValue = (Expr, BNFC'Position, Env)
 
@@ -49,7 +49,16 @@ getDefs [] = ask
 
 evalTopDef :: TopDef -> Eval Env
 evalTopDef (TopDefVar _ varDef) = evalVarDef varDef
-evalTopDef (TopDefType pos name opts) = throwError "Not implemented"
+evalTopDef (TopDefType _ _ []) = ask
+evalTopDef (TopDefType pos name (h : t)) = do
+  evalVariantType h name
+  evalTopDef $ TopDefType pos name t
+
+evalVariantType :: VariantType -> TypeName -> Eval Env
+evalVariantType (VariantType pos variantName vals) typeName = do
+  state <- get
+  put $ state {types = Map.insert variantName (ZoyaType typeName (length vals)) (types state)}
+  ask
 
 evalVarDef :: VarDef -> Eval Env
 evalVarDef (VarDef pos name expr) = do
