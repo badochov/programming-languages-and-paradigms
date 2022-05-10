@@ -70,10 +70,10 @@ evalVarDef (VarDef pos name expr) = do
   return env'
 
 evalExpr :: Expr -> Eval Value
-evalExpr (LambdaExpr pos argName expr) = do
+evalExpr (ELambda pos argName expr) = do
   env <- ask
   return $ FunVal env argName expr
-evalExpr (MatchExpr pos match) = throwError "Not implemneted"
+evalExpr (EMatch pos match) = throwError "Not implemneted"
 evalExpr (ELetIn pos varDef expr) = do
   env <- evalVarDef varDef
   local (const env) (evalExpr expr)
@@ -104,12 +104,12 @@ evalExpr (ETApp pos tName args) = throwError "Not implemneted"
 evalExpr (ELitInt _ int) = return $ IntVal int
 evalExpr (ELitList pos listArgs) = throwError "should have been preprocessed"
 evalExpr (EBrackets pos expr) = evalExpr expr
-evalExpr (Neg pos expr) = do
+evalExpr (ENeg pos expr) = do
   val <- evalExpr expr
   case val of
     IntVal n -> return $ IntVal (- n)
     _ -> throwError $ typeErr pos
-evalExpr (Not pos expr) = do
+evalExpr (ENot pos expr) = do
   val <- evalExpr expr
   case val of
     BoolVal b -> return $ BoolVal (not b)

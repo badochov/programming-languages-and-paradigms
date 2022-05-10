@@ -47,13 +47,13 @@ EBrackets.      Expr8 ::= "(" Expr ")" ;
 EFApp.          Expr7 ::= Expr Expr8 ;
 ETApp.          Expr7 ::= TypeName [Expr8] ;
 
-LambdaExpr.     Expr6 ::= "|" VarName "|" Expr ;
-MatchExpr.      Expr6 ::= Match ;
+ELambda.        Expr6 ::= "|" VarName "|" Expr ;
+EMatch.         Expr6 ::= Match ;
 ELetIn.         Expr6 ::= "let" VarDef "in" Expr ;
 ECond.          Expr6 ::= "if" Expr "then" Expr "else" Expr ;
 
-Neg.            Expr5 ::= "-" Expr6 ;
-Not.            Expr5 ::= "!" Expr6 ;
+ENeg.           Expr5 ::= "-" Expr6 ;
+ENot.           Expr5 ::= "!" Expr6 ;
 EListEx.        Expr5 ::= Expr6 ":" Expr6 ;
 
 EMul.           Expr4 ::= Expr4 MulOp Expr5 ;
@@ -78,8 +78,6 @@ Match.                                      Match ::= "match" Expr [MatchArm] ;
 
 MatchArm.                                   MatchArm ::= "|" MatchArmSpecifier "->" Expr ;
 
-MatchArmSpecifierH.                         MatchArmSpecifierHelper ::= MatchArmSpecifier ;
-
 MatchArmListEmpty.                          MatchArmSpecifierList ::= "[]" ;
 MatchArmListHeadTail.                       MatchArmSpecifierList ::= MatchArmSpecifier ":" MatchArmSpecifier ;
 
@@ -88,9 +86,9 @@ MatchArmType.                               MatchArmSpecifier ::= TypeName [Vari
 MatchArmVar.                                MatchArmSpecifier ::= VarName ;
 MatchArmFallback.                           MatchArmSpecifier ::= "_" ;
 
-MatchArmVariantTypeArgumentHelperIdent.     VariantTyMatchArmVariantTypeArgument ::= VarName ;
-MatchArmVariantTypeArgumentHelperFallback.  VariantTyMatchArmVariantTypeArgument ::= "_" ;
-MatchArmVariantTypeArgumentHelperType.      VariantTyMatchArmVariantTypeArgument ::= "(" MatchArmSpecifier ")" ;
+MatchArmVariantTypeArgumentIdent.           VariantTyMatchArmVariantTypeArgument ::= VarName ;
+MatchArmVariantTypeArgumentFallback.        VariantTyMatchArmVariantTypeArgument ::= "_" ;
+MatchArmVariantTypeArgumentNested.          VariantTyMatchArmVariantTypeArgument ::= "(" MatchArmSpecifier ")" ;
 
 
 separator                                   nonempty MatchArm "\n" ;
