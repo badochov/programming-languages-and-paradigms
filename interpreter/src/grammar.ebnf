@@ -40,7 +40,7 @@ separator   nonempty TypeFnH "->";
 
 -- Expressions ---------------------------------------------
 
-EFApp.      Expr7 ::= VarName [Expr8] ;
+EFApp.      Expr7 ::= Expr Expr8 ;
 
 ETApp.      Expr7 ::= TypeName [Expr8] ;
 

@@ -6,6 +6,6 @@ add_6 = add 6;
 
 seven = add_6 1;
 
-three_or_more = |x| let res = add_6 x > 3 in if res < 3 then 3 else res;
+three_or_more = |x| let res = add_6 x in if res < 3 then 3 else res;
 
-main = seven;
+main = three_or_more 4;

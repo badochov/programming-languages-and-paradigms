@@ -39,7 +39,7 @@ runEval :: Env -> StateType -> Eval a -> ((Either String a, [String]), StateType
 runEval env st ev = runIdentity (runStateT (runWriterT (runExceptT (runReaderT ev env))) st)
 
 mainExpr :: Expr
-mainExpr = EFApp Nothing (VarName "main") []
+mainExpr = EVar Nothing (VarName "main")
 
 getDefs :: [TopDef] -> Eval Env
 getDefs (h : t) = do
@@ -72,25 +72,24 @@ evalExpr (ECond pos stmt ifExpr elseExpr) = do
   case val of
     BoolVal b -> evalExpr $ if b then ifExpr else elseExpr
     _ -> throwError $ typeErr pos
-evalExpr (EVar pos varName) = evalExpr (EFApp pos varName [])
-evalExpr (EType pos typeName) = evalExpr (ETApp pos typeName [])
-evalExpr (EFApp pos fnName args) = do
-  outerEnv <- ask
-  case Map.lookup fnName outerEnv of
-    Nothing -> throwError $ shows "function " . shows fnName . shows " not found " . posPart pos $ ""
+evalExpr (EVar pos varName) = do
+  env <- ask
+  case Map.lookup varName env of
+    Nothing -> throwError $ shows "variable " . shows varName . shows " not found " . posPart pos $ ""
     Just stackPos -> do
       state <- get
       let (expr, pos, env) = getFromStack (stack state) stackPos
-      res <- local (const env) (evalExpr expr)
-      let applyArgs val [] = return val
-          applyArgs val (h : t) = case val of
-            FunVal fEnv argName expr -> do
-              state <- get
-              put $ state {stack = addToStack (stack state) h pos outerEnv}
-              val <- local (const (Map.insert argName (top $ stack state) fEnv)) (evalExpr expr)
-              applyArgs val t
-            _ -> throwError $ typeErr pos
-      applyArgs res args
+      local (const env) (evalExpr expr)
+evalExpr (EType pos typeName) = evalExpr (ETApp pos typeName [])
+evalExpr (EFApp pos fnExpr argExpr) = do
+  outerEnv <- ask
+  fn <- evalExpr fnExpr
+  case fn of
+    FunVal fEnv argName expr -> do
+      state <- get
+      put $ state {stack = addToStack (stack state) argExpr pos outerEnv}
+      local (const (Map.insert argName (top $ stack state) fEnv)) (evalExpr expr)
+    _ -> throwError $ typeErr pos
 evalExpr (ETApp pos tName args) = throwError "Not implemneted"
 evalExpr (ELitInt _ int) = return $ IntVal int
 evalExpr (ELitList pos listArgs) = throwError "should have been preprocessed"
@@ -155,7 +154,7 @@ typeErr :: BNFC'Position -> String
 typeErr pos = shows "type error" . posPart pos $ ""
 
 posPart :: BNFC'Position -> ShowS
-posPart Nothing = ("" ++)
+posPart Nothing = shows ""
 posPart (Just pos) = shows "at" . shows pos
 
 eval :: Program -> Eval Value
