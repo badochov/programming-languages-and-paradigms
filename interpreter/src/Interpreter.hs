@@ -73,7 +73,7 @@ evalExpr :: Expr -> Eval Value
 evalExpr (ELambda pos argName expr) = do
   env <- ask
   return $ FunVal env argName expr
-evalExpr (EMatch pos match) = throwError "Not implemneted"
+evalExpr (EMatch pos match) = throwError "Not implemented"
 evalExpr (ELetIn pos varDef expr) = do
   env <- evalVarDef varDef
   local (const env) (evalExpr expr)
@@ -100,7 +100,7 @@ evalExpr (EFApp pos fnExpr argExpr) = do
       put $ state {stack = addToStack (stack state) argExpr pos outerEnv}
       local (const (Map.insert argName (top $ stack state) fEnv)) (evalExpr expr)
     _ -> throwError $ typeErr pos
-evalExpr (ETApp pos tName args) = throwError "Not implemneted"
+evalExpr (ETApp pos tName args) = throwError "Not implemented"
 evalExpr (ELitInt _ int) = return $ IntVal int
 evalExpr (ELitList pos listArgs) = throwError "should have been preprocessed"
 evalExpr (EBrackets pos expr) = evalExpr expr
