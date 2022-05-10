@@ -44,7 +44,7 @@ preproccesArmSpec (MatchArmList pos listSpec) = preprocessListSpec listSpec
 preproccesArmSpec (MatchArmType pos typename args) = MatchArmType pos typename (map preprocessVariantTypeArg args)
 preproccesArmSpec armSpec = armSpec
 
-preprocessVariantTypeArg :: VariantTyMatchArmVariantTypeArgument -> VariantTyMatchArmVariantTypeArgument
+preprocessVariantTypeArg :: MatchArmVariantTypeArgument -> MatchArmVariantTypeArgument
 preprocessVariantTypeArg (MatchArmVariantTypeArgumentNested pos armSpec) = MatchArmVariantTypeArgumentNested pos (preproccesArmSpec armSpec)
 preprocessVariantTypeArg vTypeArg = vTypeArg
 

@@ -84,17 +84,17 @@ MatchArmListEmpty.                          MatchArmSpecifierList ::= "[]" ;
 MatchArmListHeadTail.                       MatchArmSpecifierList ::= MatchArmSpecifier ":" MatchArmSpecifier ;
 
 MatchArmList.                               MatchArmSpecifier ::= MatchArmSpecifierList ;
-MatchArmType.                               MatchArmSpecifier ::= TypeName [VariantTyMatchArmVariantTypeArgument] ;
+MatchArmType.                               MatchArmSpecifier ::= TypeName [MatchArmVariantTypeArgument] ;
 MatchArmVar.                                MatchArmSpecifier ::= VarName ;
 MatchArmFallback.                           MatchArmSpecifier ::= "_" ;
 
-MatchArmVariantTypeArgumentIdent.           VariantTyMatchArmVariantTypeArgument ::= VarName ;
-MatchArmVariantTypeArgumentFallback.        VariantTyMatchArmVariantTypeArgument ::= "_" ;
-MatchArmVariantTypeArgumentNested.          VariantTyMatchArmVariantTypeArgument ::= "(" MatchArmSpecifier ")" ;
+MatchArmVariantTypeArgumentIdent.           MatchArmVariantTypeArgument ::= VarName ;
+MatchArmVariantTypeArgumentFallback.        MatchArmVariantTypeArgument ::= "_" ;
+MatchArmVariantTypeArgumentNested.          MatchArmVariantTypeArgument ::= "(" MatchArmSpecifier ")" ;
 
 
 separator                                   nonempty MatchArm "\n" ;
-separator                                   VariantTyMatchArmVariantTypeArgument " " ;
+separator                                   MatchArmVariantTypeArgument " " ;
 
 -- operators -----------------------------------------------
 

@@ -12,6 +12,7 @@ import Data.Typeable (typeOf)
 import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
+import Language.Haskell.TH (Dec (ValD))
 
 type Env = Map.Map VarName Int
 
@@ -50,7 +51,7 @@ getDefs [] = ask
 evalTopDef :: TopDef -> Eval Env
 evalTopDef (TopDefVar _ varDef) = evalVarDef varDef
 evalTopDef (TopDefType _ _ []) = ask
-evalTopDef (TopDefType pos name (h:t)) = do
+evalTopDef (TopDefType pos name (h : t)) = do
   evalVariantType h name
   evalTopDef $ TopDefType pos name t
 
@@ -68,12 +69,12 @@ evalVariantType (VariantType pos variantName vals) typeName = do
 
 createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [VariantTypeArgument] -> Expr
 createZoyaTypeConstructor pos typeName l = makeLambda' typeConstructor pos numArgs
-    where
+  where
     numArgs = length l
     toVarName = VarName . show
     typeConstructor = ETypeHelper pos typeName (map toVarName $ consequtive numArgs)
     makeLambda' applyTo pos 0 = applyTo
-    makeLambda' applyTo pos n = makeLambda' (ELambda pos (toVarName $ numArgs - n + 1) applyTo) pos (n-1)
+    makeLambda' applyTo pos n = makeLambda' (ELambda pos (toVarName $ numArgs - n + 1) applyTo) pos (n -1)
 
 consequtive :: Int -> [Int]
 consequtive n =
@@ -95,7 +96,7 @@ evalExpr :: Expr -> Eval Value
 evalExpr (ELambda pos argName expr) = do
   env <- ask
   return $ FunVal env argName expr
-evalExpr (EMatch pos match) = throwError "Not implemented"
+evalExpr (EMatch pos match) = evalMatch match
 evalExpr (ELetIn pos varDef expr) = do
   env <- evalVarDef varDef
   local (const env) (evalExpr expr)
@@ -118,7 +119,7 @@ evalExpr (EFApp pos fnExpr argExpr) = do
   fn <- evalExpr fnExpr
   applyArg fn argExpr pos env
 evalExpr (ELitInt _ int) = return $ IntVal int
-evalExpr (ELitList pos listArgs) = throwError "should have been preprocessed"
+evalExpr (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
 evalExpr (EBrackets pos expr) = evalExpr expr
 evalExpr (ENeg pos expr) = do
   val <- evalExpr expr
@@ -130,7 +131,7 @@ evalExpr (ENot pos expr) = do
   case val of
     BoolVal b -> return $ BoolVal (not b)
     _ -> throwError $ typeErr pos
-evalExpr (EListEx pos headExpr tailExpr) = throwError "should have been preprocessed"
+evalExpr (EListEx pos headExpr tailExpr) = throwError shouldHaveBeenProccessedError
 evalExpr (EMul pos lExpr mulOp rExpr) = do
   lVal <- evalExpr lExpr
   rVal <- evalExpr rExpr
@@ -175,6 +176,46 @@ evalExpr (EOr pos lExpr rExpr) = do
   case (lVal, rVal) of
     (BoolVal l, BoolVal r) -> return $ BoolVal (l || r)
     _ -> throwError $ typeErr pos
+
+shouldHaveBeenProccessedError :: String
+shouldHaveBeenProccessedError = "should have been preprocessed"
+
+evalMatch :: Match -> Eval Value
+evalMatch (Match pos expr arms) = do
+  val <- evalExpr expr
+  evalMatch' val arms
+  where
+    evalMatch' val [] = throwError $ shows "couldn't match expression" . posPart pos $ ""
+    evalMatch' val ((MatchArm pos specifier expr) : t) = do
+      (isMatch, envChanger) <- checkMatch specifier val
+      if isMatch then local envChanger (evalExpr expr) else evalMatch' val t
+    checkMatch :: MatchArmSpecifier -> Value -> Eval (Bool, Env -> Env)
+    checkMatch (MatchArmType pos typeName args) val = case val of
+      CustomType tn ns -> if tn == typeName && length ns == length args then return (False, id) else checkMatchTypeArgs $ zip args ns
+      _ -> throwError $ typeErr pos
+    checkMatch (MatchArmVar pos varName) val = do
+      state <- get
+      env <- ask
+      let stack' = stack state
+      put state {stack = addToStack stack' expr pos env}
+      return (True, Map.insert varName $ top stack')
+    checkMatch (MatchArmFallback pos) val = return (True, id)
+    checkMatch MatchArmList {} val = throwError shouldHaveBeenProccessedError
+    checkMatchTypeArgs :: [(MatchArmVariantTypeArgument, Int)] -> Eval (Bool, Env -> Env)
+    checkMatchTypeArgs [] = return (True, id)
+    checkMatchTypeArgs (h : t) = do
+      (ok, fn) <- checkMatchTypeArg h
+      if ok
+        then do
+          (ok2, fn2) <- checkMatchTypeArgs t
+          return (ok2, fn . fn2)
+        else return (False, id)
+    checkMatchTypeArg :: (MatchArmVariantTypeArgument, Int) -> Eval (Bool, Env -> Env)
+    checkMatchTypeArg (MatchArmVariantTypeArgumentNested _ specifier, stackPos) = do
+      val <- execExprFromStack stackPos
+      checkMatch specifier val
+    checkMatchTypeArg (MatchArmVariantTypeArgumentFallback _, _) = return (True, id)
+    checkMatchTypeArg (MatchArmVariantTypeArgumentIdent _ varName, stackPos) = return (True, Map.insert varName stackPos)
 
 applyArg :: Value -> Expr -> BNFC'Position -> Env -> Eval Value
 applyArg fn argExpr pos outerEnv = case fn of
