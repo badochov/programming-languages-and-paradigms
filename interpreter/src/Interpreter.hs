@@ -13,19 +13,16 @@ import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
 
-data ZoyaType = ZoyaType TypeName Int deriving (Show)
-
 type Env = Map.Map VarName Int
 
-data StateType = StateType
-  { types :: Map.Map TypeName ZoyaType,
-    stack :: Stack
+newtype StateType = StateType
+  { stack :: Stack
   }
   deriving (Show)
 
 type Eval a = ReaderT Env (ExceptT String (WriterT [String] (StateT StateType Identity))) a
 
-data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType String Int deriving (Show)
+data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType String [Int] deriving (Show)
 
 type StackValue = (Expr, BNFC'Position, Env)
 
@@ -49,16 +46,7 @@ getDefs [] = ask
 
 evalTopDef :: TopDef -> Eval Env
 evalTopDef (TopDefVar _ varDef) = evalVarDef varDef
-evalTopDef (TopDefType _ _ []) = ask
-evalTopDef (TopDefType pos name (h : t)) = do
-  evalVariantType h name
-  evalTopDef $ TopDefType pos name t
-
-evalVariantType :: VariantType -> TypeName -> Eval Env
-evalVariantType (VariantType pos variantName vals) typeName = do
-  state <- get
-  put $ state {types = Map.insert variantName (ZoyaType typeName (length vals)) (types state)}
-  ask
+evalTopDef _ = ask
 
 evalVarDef :: VarDef -> Eval Env
 evalVarDef (VarDef pos name expr) = do
@@ -90,17 +78,11 @@ evalExpr (EVar pos varName) = do
       state <- get
       let (expr, pos, env) = getFromStack (stack state) stackPos
       local (const env) (evalExpr expr)
-evalExpr (EType pos typeName) = evalExpr (ETApp pos typeName [])
+evalExpr (EType pos typeName) = throwError "not implemented"
 evalExpr (EFApp pos fnExpr argExpr) = do
-  outerEnv <- ask
+  env <- ask
   fn <- evalExpr fnExpr
-  case fn of
-    FunVal fEnv argName expr -> do
-      state <- get
-      put $ state {stack = addToStack (stack state) argExpr pos outerEnv}
-      local (const (Map.insert argName (top $ stack state) fEnv)) (evalExpr expr)
-    _ -> throwError $ typeErr pos
-evalExpr (ETApp pos tName args) = throwError "Not implemented"
+  applyArg fn argExpr pos env
 evalExpr (ELitInt _ int) = return $ IntVal int
 evalExpr (ELitList pos listArgs) = throwError "should have been preprocessed"
 evalExpr (EBrackets pos expr) = evalExpr expr
@@ -160,6 +142,14 @@ evalExpr (EOr pos lExpr rExpr) = do
     (BoolVal l, BoolVal r) -> return $ BoolVal (l || r)
     _ -> throwError $ typeErr pos
 
+applyArg :: Value -> Expr -> BNFC'Position -> Env -> Eval Value
+applyArg fn argExpr pos outerEnv = case fn of
+  FunVal fEnv argName expr -> do
+    state <- get
+    put $ state {stack = addToStack (stack state) argExpr pos outerEnv}
+    local (const (Map.insert argName (top $ stack state) fEnv)) (evalExpr expr)
+  _ -> throwError $ typeErr pos
+
 typeErr :: BNFC'Position -> String
 typeErr pos = shows "type error" . posPart pos $ ""
 
@@ -185,7 +175,7 @@ newEnv :: Env
 newEnv = Map.empty
 
 newState :: StateType
-newState = StateType {stack = newStack, types = Map.empty}
+newState = StateType {stack = newStack}
 
 newStack :: Stack
 newStack = Stack {st = [], top = 0}

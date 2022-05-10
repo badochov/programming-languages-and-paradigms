@@ -45,7 +45,6 @@ ELitList.       Expr8 ::= "[" [ListArg] "]" ;
 EBrackets.      Expr8 ::= "(" Expr ")" ;
 
 EFApp.          Expr7 ::= Expr Expr8 ;
-ETApp.          Expr7 ::= TypeName [Expr8] ;
 
 ELambda.        Expr6 ::= "|" VarName "|" Expr ;
 EMatch.         Expr6 ::= Match ;

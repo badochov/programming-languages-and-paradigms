@@ -9,10 +9,9 @@ listEmptyTypeName :: TypeName
 listEmptyTypeName = TypeName "Empty"
 
 preproccesExpr :: Expr -> Expr
-preproccesExpr (ELitList pos []) = preproccesExpr $ ETApp pos listEmptyTypeName []
-preproccesExpr (ELitList pos ((ListArg argPos h) : t)) = preproccesExpr $ ETApp argPos listEmptyTypeName [h, ELitList pos t]
-preproccesExpr (EListEx pos headExpr tailExpr) = ETApp pos listNodeTypeName [headExpr, tailExpr]
-preproccesExpr (ETApp pos typeName args) = preproccesExpr $ ETApp pos typeName $ map preproccesExpr args
+preproccesExpr (ELitList pos []) = EType pos listEmptyTypeName
+preproccesExpr (ELitList pos ((ListArg argPos h) : t)) = preproccesExpr $ makeTApp argPos listEmptyTypeName [h, ELitList pos t]
+preproccesExpr (EListEx pos headExpr tailExpr) = makeTApp pos listNodeTypeName [headExpr, tailExpr]
 preproccesExpr (EMatch pos matchExpr) = EMatch pos (preprocessMatchExpr matchExpr)
 preproccesExpr (EBrackets pos expr) = EBrackets pos (preproccesExpr expr)
 preproccesExpr (EFApp pos expr1 expr2) = EFApp pos (preproccesExpr expr1) (preproccesExpr expr2)
@@ -27,6 +26,12 @@ preproccesExpr (ERel pos expr1 op expr2) = ERel pos (preproccesExpr expr1) op (p
 preproccesExpr (EAnd pos expr1 expr2) = EAnd pos (preproccesExpr expr1) (preproccesExpr expr2)
 preproccesExpr (EOr pos expr1 expr2) = EOr pos (preproccesExpr expr1) (preproccesExpr expr2)
 preproccesExpr expr = expr
+
+makeTApp :: BNFC'Position -> TypeName  -> [Expr] -> Expr
+makeTApp pos tName = makeTApp' (EType pos tName) pos
+  where
+    makeTApp' applyTo pos [] = applyTo
+    makeTApp' applyTo pos (h : t) = makeTApp' (EFApp pos applyTo h) pos t
 
 preprocessMatchExpr :: Match -> Match
 preprocessMatchExpr (Match pos expr arms) = Match pos (preproccesExpr expr) (map preprocessArm arms)
