@@ -28,10 +28,10 @@ preproccesExpr (EOr pos expr1 expr2) = EOr pos (preproccesExpr expr1) (preprocce
 preproccesExpr expr = expr
 
 makeTApp :: BNFC'Position -> TypeName  -> [Expr] -> Expr
-makeTApp pos tName = makeTApp' (EType pos tName) pos
+makeTApp pos tName = makeFApp' (EType pos tName) pos
   where
-    makeTApp' applyTo pos [] = applyTo
-    makeTApp' applyTo pos (h : t) = makeTApp' (EFApp pos applyTo h) pos t
+    makeFApp' applyTo pos [] = applyTo
+    makeFApp' applyTo pos (h : t) = makeFApp' (EFApp pos applyTo h) pos t
 
 preprocessMatchExpr :: Match -> Match
 preprocessMatchExpr (Match pos expr arms) = Match pos (preproccesExpr expr) (map preprocessArm arms)

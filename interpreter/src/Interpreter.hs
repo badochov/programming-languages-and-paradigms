@@ -15,14 +15,17 @@ import Grammar.Abs
 
 type Env = Map.Map VarName Int
 
-newtype StateType = StateType
-  { stack :: Stack
+type ZoyaTypes = Map.Map TypeName Int
+
+data StateType = StateType
+  { stack :: Stack,
+    types :: ZoyaTypes
   }
   deriving (Show)
 
 type Eval a = ReaderT Env (ExceptT String (WriterT [String] (StateT StateType Identity))) a
 
-data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType String [Int] deriving (Show)
+data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType TypeName [Int] deriving (Show)
 
 type StackValue = (Expr, BNFC'Position, Env)
 
@@ -46,7 +49,38 @@ getDefs [] = ask
 
 evalTopDef :: TopDef -> Eval Env
 evalTopDef (TopDefVar _ varDef) = evalVarDef varDef
-evalTopDef _ = ask
+evalTopDef (TopDefType _ _ []) = ask
+evalTopDef (TopDefType pos name (h:t)) = do
+  evalVariantType h name
+  evalTopDef $ TopDefType pos name t
+
+evalVariantType :: VariantType -> TypeName -> Eval Env
+evalVariantType (VariantType pos variantName vals) typeName = do
+  state <- get
+  env <- ask
+  let s = stack state
+  put $
+    state
+      { types = Map.insert variantName (top s) (types state),
+        stack = addToStack s (createZoyaTypeConstructor pos variantName vals) pos env
+      }
+  return env
+
+createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [VariantTypeArgument] -> Expr
+createZoyaTypeConstructor pos typeName l = makeLambda' typeConstructor pos numArgs
+    where
+    numArgs = length l
+    toVarName = VarName . show
+    typeConstructor = ETypeHelper pos typeName (map toVarName $ consequtive numArgs)
+    makeLambda' applyTo pos 0 = applyTo
+    makeLambda' applyTo pos n = makeLambda' (ELambda pos (toVarName $ numArgs - n + 1) applyTo) pos (n-1)
+
+consequtive :: Int -> [Int]
+consequtive n =
+  consequtive' [] n
+  where
+    consequtive' acc 0 = acc
+    consequtive' acc n = consequtive' (n : acc) (n -1)
 
 evalVarDef :: VarDef -> Eval Env
 evalVarDef (VarDef pos name expr) = do
@@ -72,13 +106,13 @@ evalExpr (ECond pos stmt ifExpr elseExpr) = do
     _ -> throwError $ typeErr pos
 evalExpr (EVar pos varName) = do
   env <- ask
-  case Map.lookup varName env of
-    Nothing -> throwError $ shows "variable " . shows varName . shows " not found " . posPart pos $ ""
-    Just stackPos -> do
-      state <- get
-      let (expr, pos, env) = getFromStack (stack state) stackPos
-      local (const env) (evalExpr expr)
-evalExpr (EType pos typeName) = throwError "not implemented"
+  execExprFromStack $ env ! varName
+evalExpr (EType pos typeName) = do
+  state <- get
+  execExprFromStack $ types state ! typeName
+evalExpr (ETypeHelper pos typeName args) = do
+  env <- ask
+  return $ CustomType typeName $ map (env !) args
 evalExpr (EFApp pos fnExpr argExpr) = do
   env <- ask
   fn <- evalExpr fnExpr
@@ -171,11 +205,20 @@ addToStack stack expr pos env = Stack {st = (expr, pos, env) : st stack, top = t
 getFromStack :: Stack -> Int -> StackValue
 getFromStack stack n = st stack !! (top stack - 1 - n)
 
+execExprFromStack :: Int -> Eval Value
+execExprFromStack stackPos = do
+  state <- get
+  let (expr, pos, env) = getFromStack (stack state) stackPos
+  local (const env) (evalExpr expr)
+
 newEnv :: Env
 newEnv = Map.empty
 
+newZoyaTypes :: ZoyaTypes
+newZoyaTypes = Map.empty
+
 newState :: StateType
-newState = StateType {stack = newStack}
+newState = StateType {stack = newStack, types = newZoyaTypes}
 
 newStack :: Stack
 newStack = Stack {st = [], top = 0}

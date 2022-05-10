@@ -38,6 +38,8 @@ separator       nonempty TypeFnH "->" ;
 
 -- Expressions ---------------------------------------------
 
+ETypeHelper.    Expr9 ::= "<<<" TypeName [VarName] ">>>" ; -- used only internally for type application
+
 EVar.           Expr8 ::= VarName ;
 EType.          Expr8 ::= TypeName ;
 ELitInt.        Expr8 ::= Integer ;
@@ -69,6 +71,7 @@ coercions       Expr 9 ;
 
 ListArg.        ListArg ::= Expr ;
 separator       ListArg "," ;
+separator       VarName " " ;
 separator       nonempty Expr8 " " ;
 
 -- Pattern Matching ---------------------------------------

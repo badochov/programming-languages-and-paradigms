@@ -5,7 +5,7 @@ import Common (preprocess)
 import Grammar.Abs (Program)
 import Grammar.Par (myLexer, pProgram)
 import Grammar.Skel ()
-import Interpreter (Stack (st), StateType (stack), Value, interpret, newState)
+import Interpreter (StateType , Value, interpret)
 import System.Environment (getArgs)
 import System.IO (hPrint, stderr)
 
