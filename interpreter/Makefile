@@ -2,12 +2,15 @@
 
 all : full
 
+GHC = ghc
+GHC_FLAGS =
+
 full:
 	-make parser
 	-make interpreter
 
 interpreter: src/zoya.hs src/Interpreter.hs src/Grammar/Abs.hs
-	-cd src && ghc -Wall zoya.hs -o ../interpreter
+	-cd src && ${GHC} ${GHC_FLAGS} -Wall zoya.hs -o ../interpreter
 
 parser: src/grammar.cf
 	-bnfc -d --functor -o src -m src/grammar.cf

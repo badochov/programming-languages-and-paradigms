@@ -68,13 +68,14 @@ evalVariantType (VariantType pos variantName vals) typeName = do
   return env
 
 createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [VariantTypeArgument] -> Expr
-createZoyaTypeConstructor pos typeName l = makeLambda' typeConstructor pos numArgs
+createZoyaTypeConstructor pos typeName l = let res = makeLambda' typeConstructor pos numArgs in
+  trace (show res) res
   where
     numArgs = length l
     toVarName = VarName . show
     typeConstructor = ETypeHelper pos typeName (map toVarName $ consequtive numArgs)
     makeLambda' applyTo pos 0 = applyTo
-    makeLambda' applyTo pos n = makeLambda' (ELambda pos (toVarName $ numArgs - n + 1) applyTo) pos (n -1)
+    makeLambda' applyTo pos n = makeLambda' (ELambda pos (toVarName n) applyTo) pos (n -1)
 
 consequtive :: Int -> [Int]
 consequtive n =
@@ -185,14 +186,14 @@ evalMatch (Match pos expr arms) = do
   val <- evalExpr expr
   evalMatch' val arms
   where
-    evalMatch' val [] = throwError $ shows "couldn't match expression" . posPart pos $ ""
+    evalMatch' val [] = trace (show "ARMS " ++ show arms) throwError $ shows "couldn't match expression" . posPart pos $ ""
     evalMatch' val ((MatchArm pos specifier expr) : t) = do
-      (isMatch, envChanger) <- checkMatch specifier val
+      (isMatch, envChanger) <- trace ("PRE " ++ show val) checkMatch specifier val
       if isMatch then local envChanger (evalExpr expr) else evalMatch' val t
     checkMatch :: MatchArmSpecifier -> Value -> Eval (Bool, Env -> Env)
     checkMatch (MatchArmType pos typeName args) val = case val of
-      CustomType tn ns -> if tn == typeName && length ns == length args then return (False, id) else checkMatchTypeArgs $ zip args ns
-      _ -> throwError $ typeErr pos
+      CustomType tn ns -> if tn == typeName && length ns == length args then checkMatchTypeArgs $ zip args ns else return (False, id)
+      _ -> trace (show val) throwError $ typeErr pos
     checkMatch (MatchArmVar pos varName) val = do
       state <- get
       env <- ask
@@ -213,7 +214,7 @@ evalMatch (Match pos expr arms) = do
     checkMatchTypeArg :: (MatchArmVariantTypeArgument, Int) -> Eval (Bool, Env -> Env)
     checkMatchTypeArg (MatchArmVariantTypeArgumentNested _ specifier, stackPos) = do
       val <- execExprFromStack stackPos
-      checkMatch specifier val
+      trace ("NESTED CHECK" ++ show specifier ++ show val ++ show stackPos) checkMatch specifier val
     checkMatchTypeArg (MatchArmVariantTypeArgumentFallback _, _) = return (True, id)
     checkMatchTypeArg (MatchArmVariantTypeArgumentIdent _ varName, stackPos) = return (True, Map.insert varName stackPos)
 
