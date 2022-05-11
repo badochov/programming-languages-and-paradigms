@@ -18,7 +18,7 @@ type StackPosOrValue = Either Int Value
 
 type Env = Map.Map VarName StackPosOrValue
 
-type ZoyaTypes = Map.Map TypeName Int
+type ZoyaTypes = Map.Map TypeName Value
 
 data StateType = StateType
   { stack :: Stack,
@@ -60,16 +60,13 @@ evalTopDef (TopDefType pos name (h : t)) = do
 evalVariantType :: VariantType -> TypeName -> Eval Env
 evalVariantType (VariantType pos variantName vals) typeName = do
   state <- get
-  env <- ask
-  let s = stack state
   put $
     state
-      { types = Map.insert variantName (top s) (types state),
-        stack = addToStack s (createZoyaTypeConstructor pos variantName vals) pos env
+      { types = Map.insert variantName (createZoyaTypeConstructor pos variantName vals) (types state)
       }
-  return env
+  ask
 
-createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [VariantTypeArgument] -> Expr
+createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [VariantTypeArgument] -> Value
 createZoyaTypeConstructor pos typeName l =
   let res = makeLambda' typeConstructor pos numArgs
    in trace (show res) res
@@ -77,7 +74,9 @@ createZoyaTypeConstructor pos typeName l =
     numArgs = length l
     toVarName = VarName . show
     typeConstructor = ETypeHelper pos typeName (map toVarName $ consequtive numArgs)
-    makeLambda' applyTo pos 0 = applyTo
+    makeLambda' :: Expr -> BNFC'Position -> Int -> Value
+    makeLambda' applyTo pos 0 = CustomType typeName []
+    makeLambda' applyTo pos 1 = FunVal newEnv (toVarName 1) applyTo
     makeLambda' applyTo pos n = makeLambda' (ELambda pos (toVarName n) applyTo) pos (n -1)
 
 consequtive :: Int -> [Int]
@@ -116,7 +115,7 @@ evalExpr (EVar pos varName) = do
     Right val -> return val
 evalExpr (EType pos typeName) = do
   state <- get
-  execExprFromStack $ types state ! typeName
+  return $ types state ! typeName
 evalExpr (ETypeHelper pos typeName args) = do
   env <- ask
   return $ CustomType typeName $ map (env !) args
