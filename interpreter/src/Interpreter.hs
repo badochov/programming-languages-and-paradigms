@@ -146,12 +146,11 @@ evalExpr (EMul pos lExpr mulOp rExpr) = do
   lVal <- evalExpr lExpr
   rVal <- evalExpr rExpr
   case (lVal, rVal) of
-    (IntVal l, IntVal r) -> return $ IntVal (getMulop mulOp l r)
+    (IntVal l, IntVal r) -> case mulOp of
+      (Times _) -> return $ IntVal (l * r)
+      (Div _) -> if r == 0 then throwError $ shows "division by zero" . posPart pos $ "" else return $ IntVal (l `div` r)
+      (Mod _) -> if r == 0 then throwError $ shows "modulo by zero" . posPart pos $ "" else return $ IntVal (l `mod` r)
     _ -> throwError $ typeErr pos
-  where
-    getMulop (Times _) = (*)
-    getMulop (Div _) = div
-    getMulop (Mod _) = mod
 evalExpr (EAdd pos lExpr addOp rExpr) = do
   lVal <- evalExpr lExpr
   rVal <- evalExpr rExpr
