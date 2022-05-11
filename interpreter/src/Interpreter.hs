@@ -73,18 +73,18 @@ createZoyaTypeConstructor pos typeName l =
   where
     numArgs = length l
     toVarName = VarName . show
-    typeConstructor = ETypeHelper pos typeName (map toVarName $ consequtive numArgs)
+    typeConstructor = ETypeHelper pos typeName (map toVarName $ consecutive numArgs)
     makeLambda' :: Expr -> BNFC'Position -> Int -> Value
     makeLambda' applyTo pos 0 = CustomType typeName []
     makeLambda' applyTo pos 1 = FunVal newEnv (toVarName 1) applyTo
     makeLambda' applyTo pos n = makeLambda' (ELambda pos (toVarName n) applyTo) pos (n -1)
 
-consequtive :: Int -> [Int]
-consequtive n =
-  consequtive' [] n
+consecutive :: Int -> [Int]
+consecutive n =
+  consecutive' [] n
   where
-    consequtive' acc 0 = acc
-    consequtive' acc n = consequtive' (n : acc) (n -1)
+    consecutive' acc 0 = acc
+    consecutive' acc n = consecutive' (n : acc) (n -1)
 
 evalVarDef :: VarDef -> Eval Env
 evalVarDef (VarDef pos name expr) = do
