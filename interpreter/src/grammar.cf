@@ -24,13 +24,15 @@ separator                       VariantTypeArgument " " ;
 
 token PolyIdentToken ('\'' lower) ;
 
-TypeInt.        Type ::= "Int" ;
-TypeBool.       Type ::= "Bool" ;
-TypePoly.       Type ::= PolyIdentToken ;
-TypeFn.         Type ::= "(" Type "->" Type ")" ;
-TypeCustom.     Type ::= "(" TypeName [Type] ")" ;
+TypeInt.            Type1 ::= "Int" ;
+TypeBool.           Type1 ::= "Bool" ;
+TypePoly.           Type1 ::= PolyIdentToken ;
+TypeCustom.         Type1 ::= TypeName [Type] ;
+TypeBrackets.       Type1 ::= "(" Type ")" ;
+TypeFn.             Type ::= Type "->" Type ;
 
-separator       nonempty Type " " ;
+coercions           Type 1 ;
+separator           Type " " ;
 
 -- Expressions ---------------------------------------------
 

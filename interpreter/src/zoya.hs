@@ -5,9 +5,10 @@ import Common (preprocess)
 import Grammar.Abs (Program)
 import Grammar.Par (myLexer, pProgram)
 import Grammar.Skel ()
-import Interpreter (StateType , Value, interpret)
+import Interpreter (StateType, Value, interpret, newState)
 import System.Environment (getArgs)
 import System.IO (hPrint, stderr)
+import TypeChecker (typeCheckProgram)
 
 type Handler = Program -> ((Either String Value, [String]), StateType)
 
@@ -15,7 +16,11 @@ runFile :: Handler -> FilePath -> IO ()
 runFile p f = putStrLn f >> readFile f >>= run p
 
 handleInterpret :: Handler
-handleInterpret = interpret
+handleInterpret p =
+  let (res, log) = typeCheckProgram p
+   in case res of
+        Left err -> ((Left $ "TYPE CHECKER ERROR:\n" ++ err, log), newState)
+        Right _ -> interpret p
 
 run :: Handler -> String -> IO ()
 run p s =

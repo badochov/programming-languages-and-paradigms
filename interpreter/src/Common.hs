@@ -71,10 +71,7 @@ preprocess :: Program -> Program
 preprocess (Program pos topDefs) = Program pos $ preprocessTopDefs topDefs
 
 (<.>) :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe (a -> a)
-(<.>) fn1 fn2 = do
-  f <- fn1
-  f2 <- fn2
-  Just $ f . f2
+(<.>) fn1 fn2 = (.) <$> fn1 <*> fn2 
 
 posPart :: BNFC'Position -> ShowS
 posPart Nothing = shows ""
