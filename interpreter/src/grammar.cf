@@ -14,7 +14,7 @@ VariantType.                    VariantType ::= TypeName [VariantTypeArgument] ;
 VariantTypeArgumentCustType.    VariantTypeArgument ::= "(" VariantType ")" ;
 VariantTypeArgumentType.        VariantTypeArgument ::= Type ;
 
-VarDef.	                        VarDef ::= VarName "=" Expr ;
+VarDef.	                        VarDef ::= VarName ":" Type "=" Expr ;
 
 separator                       nonempty TopDef "\n" ;
 separator                       nonempty VariantType "|" ;
@@ -22,19 +22,15 @@ separator                       VariantTypeArgument " " ;
 
 -- Types ---------------------------------------------------
 
-token PolyIdentToken lower ;
+token PolyIdentToken ('\'' lower) ;
 
 TypeInt.        Type ::= "Int" ;
 TypeBool.       Type ::= "Bool" ;
-TypePoly.       Type ::= "'" PolyIdentToken ;
-TypeFn.         Type ::= "(" [TypeFnH] ")" ;
-TypePolyFill.   Type ::= "(" TypeName [PolyIdent] ")" ;
+TypePoly.       Type ::= PolyIdentToken ;
+TypeFn.         Type ::= "(" Type "->" Type ")" ;
+TypeCustom.     Type ::= "(" TypeName [Type] ")" ;
 
-TypeFnH.        TypeFnH ::= Type ;
-PolyIdent.      PolyIdent ::= Type ;
-
-separator       nonempty PolyIdent " " ;
-separator       nonempty TypeFnH "->" ;
+separator       nonempty Type " " ;
 
 -- Expressions ---------------------------------------------
 
@@ -48,7 +44,7 @@ EBrackets.      Expr8 ::= "(" Expr ")" ;
 
 EFApp.          Expr7 ::= Expr Expr8 ;
 
-ELambda.        Expr6 ::= "|" VarName "|" Expr ;
+ELambda.        Expr6 ::= "|" VarName ":" Type "|" Expr ;
 EMatch.         Expr6 ::= Match ;
 ELetIn.         Expr6 ::= "let" VarDef "in" Expr ;
 ECond.          Expr6 ::= "if" Expr "then" Expr "else" Expr ;

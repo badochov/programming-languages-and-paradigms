@@ -15,7 +15,7 @@ preproccesExpr (EListEx pos headExpr tailExpr) = makeTApp pos listNodeTypeName [
 preproccesExpr (EMatch pos matchExpr) = EMatch pos (preprocessMatchExpr matchExpr)
 preproccesExpr (EBrackets pos expr) = EBrackets pos (preproccesExpr expr)
 preproccesExpr (EFApp pos expr1 expr2) = EFApp pos (preproccesExpr expr1) (preproccesExpr expr2)
-preproccesExpr (ELambda pos varName expr) = ELambda pos varName (preproccesExpr expr)
+preproccesExpr (ELambda pos varName t expr) = ELambda pos varName (preprocessType t) (preproccesExpr expr)
 preproccesExpr (ELetIn pos varDef expr) = ELetIn pos (preprocessVarDef varDef) (preproccesExpr expr)
 preproccesExpr (ECond pos stmt ifExpr elseExpr) = ECond pos (preproccesExpr stmt) (preproccesExpr ifExpr) (preproccesExpr elseExpr)
 preproccesExpr (ENeg pos expr) = ENeg pos (preproccesExpr expr)
@@ -58,11 +58,20 @@ preprocessTopDefs :: [TopDef] -> [TopDef]
 preprocessTopDefs = map preprocessTopDef
 
 preprocessVarDef :: VarDef -> VarDef
-preprocessVarDef (VarDef pos varName expr) = VarDef pos varName (preproccesExpr expr)
+preprocessVarDef (VarDef pos varName t expr) = VarDef pos varName (preprocessType t) (preproccesExpr expr)
 
 preprocessTopDef :: TopDef -> TopDef
 preprocessTopDef (TopDefVar posTop vDef@VarDef {}) = TopDefVar posTop (preprocessVarDef vDef)
 preprocessTopDef topDef = topDef
 
+preprocessType :: Type -> Type 
+preprocessType = id
+
 preprocess :: Program -> Program
 preprocess (Program pos topDefs) = Program pos $ preprocessTopDefs topDefs
+
+(<.>) :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe (a -> a)
+(<.>) fn1 fn2 = do
+  f <- fn1
+  f2 <- fn2
+  Just $ f . f2
