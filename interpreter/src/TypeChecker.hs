@@ -1,5 +1,6 @@
 module TypeChecker where
 
+import Common (posPart, (<.>))
 import Control.Monad (foldM, void)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Identity (Identity (runIdentity))
@@ -7,18 +8,19 @@ import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, ask
 import Control.Monad.Writer (MonadWriter (tell), WriterT (runWriterT))
 import Data.Map ((!))
 import qualified Data.Map as Map
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing)
 import Data.Typeable (typeOf)
 import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Distribution.PackageDescription (BuildType (Custom))
 import Grammar.Abs
-import Common ((<.>), posPart)
+
+type PolyMap = Map.Map PolyIdentToken (ZoyaType, BNFC'Position)
 
 data Env = Env
   { vars :: Map.Map VarName (ZoyaType, BNFC'Position),
     custTypes :: Map.Map TypeName (ZoyaType, BNFC'Position),
-    poly :: Map.Map PolyIdentToken (ZoyaType, BNFC'Position)
+    poly :: PolyMap
   }
 
 type TypeCheck a = ReaderT Env (ExceptT String (WriterT [String] Identity)) a
@@ -106,7 +108,8 @@ inferType (ECond pos stmt ifExpr elseExpr) = do
   _ <- checkType BoolType (inferType stmt) pos
   ifT <- inferType ifExpr
   elseT <- inferType elseExpr
-  if typesEqual ifT elseT
+  env <- asks poly
+  if typesEqual ifT elseT env
     then return ifT
     else throwError $ mismatchedIfTypesError ifT elseT
   where
@@ -128,7 +131,10 @@ inferType (EFApp pos fnExpr argExpr) = do
   outerEnv <- ask
   fn <- inferType fnExpr
   case fn of
-    FunType argType retType -> checkType argType (inferType argExpr) pos >> return retType
+    FunType argType retType -> do
+      throwError "Unimplemnted"
+      -- if eq then return expected else throwError $ typeMismatchError expected actual pos
+      -- checkType argType (inferType argExpr) pos >> return retType
     _ -> throwError $ shows "tried to call not function" . posPart pos $ ""
 inferType (ELitInt _ int) = return IntType
 inferType (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
@@ -147,10 +153,32 @@ inferType (EOr pos lExpr rExpr) = checkType BoolType (inferType lExpr) pos >> ch
 checkType :: ZoyaType -> TypeCheck ZoyaType -> BNFC'Position -> TypeCheck ZoyaType
 checkType expected actualM pos = do
   actual <- actualM
-  if typesEqual expected actual then return expected else throwError $ typeMismatchError expected actual pos
+  eq <- asks (typesEqual expected actual . poly)
+  if eq then return expected else throwError $ typeMismatchError expected actual pos
 
-typesEqual :: ZoyaType -> ZoyaType -> Bool
-typesEqual expected actual = expected == actual
+typesEqual :: ZoyaType -> ZoyaType -> PolyMap -> Bool
+typesEqual expected actual polyM = do
+  case expected of
+    IntType -> canBe IntType actual polyM
+    FunType argType retType -> case actual of
+      FunType actArgType actRetType -> False -- not implemented
+      _ -> False
+    BoolType -> canBe BoolType actual polyM
+    CustomType typeName zoyaTypes -> _
+    PolyType name -> polyOk name actual polyM
+  where
+    polyOk :: PolyIdentToken -> ZoyaType -> PolyMap -> Bool
+    polyOk name actual polyM = case Map.lookup name polyM of
+      Nothing -> True
+      Just (t, _) -> typesEqual t actual polyM
+    canBe :: ZoyaType -> ZoyaType -> PolyMap -> Bool
+    canBe ex act polyM = ex == act || exPoly ex act polyM || actPoly ex act polyM
+    exPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
+    exPoly ex act polyM = case ex of
+      PolyType name -> polyOk name act polyM
+      _ -> False
+    actPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
+    actPoly ex act polyM = False
 
 typeMismatchError :: ZoyaType -> ZoyaType -> BNFC'Position -> String
 typeMismatchError expected actual pos = shows "type mismatch, expected: " . shows expected . shows ", actual:" . shows actual . posPart pos $ ""
@@ -187,7 +215,7 @@ inferTypeMatch (Match pos expr arms) = do
     checkMatchTypeArg :: (MatchArmVariantTypeArgument, ZoyaType) -> TypeCheck (Maybe (Env -> Env))
     checkMatchTypeArg (MatchArmVariantTypeArgumentNested _ specifier, t) = checkMatch specifier t
     checkMatchTypeArg (MatchArmVariantTypeArgumentFallback _, _) = return $ Just id
-    checkMatchTypeArg (MatchArmVariantTypeArgumentIdent pos varName, t) = return $ Just $ \e -> e {vars=Map.insert varName (t, pos) $ vars e}
+    checkMatchTypeArg (MatchArmVariantTypeArgumentIdent pos varName, t) = return $ Just $ \e -> e {vars = Map.insert varName (t, pos) $ vars e}
 
 typeCheck :: Program -> TypeCheck Env
 typeCheck (Program _ topDefs) = do
@@ -195,7 +223,6 @@ typeCheck (Program _ topDefs) = do
 
 typeCheckProgram :: Program -> (Either String (), [String])
 typeCheckProgram program = runTypeCheck newEnv (void $ typeCheck program)
-
 
 newEnv :: Env
 newEnv = Env {vars = Map.empty, poly = Map.empty, custTypes = Map.empty}
