@@ -27,7 +27,7 @@ preproccesExpr (EAnd pos expr1 expr2) = EAnd pos (preproccesExpr expr1) (preproc
 preproccesExpr (EOr pos expr1 expr2) = EOr pos (preproccesExpr expr1) (preproccesExpr expr2)
 preproccesExpr expr = expr
 
-makeTApp :: BNFC'Position -> TypeName  -> [Expr] -> Expr
+makeTApp :: BNFC'Position -> TypeName -> [Expr] -> Expr
 makeTApp pos tName = makeFApp' (EType pos tName) pos
   where
     makeFApp' applyTo pos [] = applyTo
@@ -64,7 +64,7 @@ preprocessTopDef :: TopDef -> TopDef
 preprocessTopDef (TopDefVar posTop vDef@VarDef {}) = TopDefVar posTop (preprocessVarDef vDef)
 preprocessTopDef topDef = topDef
 
-preprocessType :: Type -> Type 
+preprocessType :: Type -> Type
 preprocessType = id
 
 preprocess :: Program -> Program
@@ -75,3 +75,7 @@ preprocess (Program pos topDefs) = Program pos $ preprocessTopDefs topDefs
   f <- fn1
   f2 <- fn2
   Just $ f . f2
+
+posPart :: BNFC'Position -> ShowS
+posPart Nothing = shows ""
+posPart (Just pos) = shows " at" . shows pos

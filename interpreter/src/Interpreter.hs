@@ -12,7 +12,7 @@ import Data.Typeable (typeOf)
 import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
-import Common ((<.>))
+import Common ((<.>), posPart)
 
 type StackPosOrValue = Either Int Value
 
@@ -223,10 +223,6 @@ evalMatch (Match pos expr arms) = do
 
 typeErr :: BNFC'Position -> String
 typeErr pos = shows "type error" . posPart pos $ ""
-
-posPart :: BNFC'Position -> ShowS
-posPart Nothing = shows ""
-posPart (Just pos) = shows "at" . shows pos
 
 eval :: Program -> Eval Value
 eval (Program _ topDefs) = do
