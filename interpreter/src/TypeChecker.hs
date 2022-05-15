@@ -76,15 +76,11 @@ typeCheckVariantType (VariantType pos variantName vals) typeName = do
     addVariant env = Map.adjust (Data.Bifunctor.first (Set.insert variantName)) typeName $ variantTypes env
 
 createZoyaTypeConstructor :: TypeName -> [Type] -> ZoyaType
-createZoyaTypeConstructor typeName l = makeLambda typeConstructor pL
+createZoyaTypeConstructor typeName l = makeLambda pL
   where
-    pL = map parseVariantTypeArgument l
-    numArgs = length l
-    toVarName = VarName . show
-    typeConstructor = CustomType typeName pL
-    makeLambda :: ZoyaType -> [ZoyaType] -> ZoyaType
-    makeLambda applyTo [] = applyTo
-    makeLambda applyTo (h:t) = FunType h (applyTo t)
+    pL = map parseType l
+    makeLambda [] = CustomType typeName pL
+    makeLambda (h : t) = FunType h $ makeLambda t
 
 parseType :: Type -> ZoyaType
 parseType (TypeInt pos) = IntType
