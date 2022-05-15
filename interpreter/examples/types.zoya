@@ -1,5 +1,5 @@
 type IntPair = Pair Int Int;
-type Test = Test Int (IntPair) ;
+type Test = Test Bool (IntPair) ;
 
 t : Test = (Test 42) ((Pair 6 9));
 

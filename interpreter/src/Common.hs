@@ -73,9 +73,12 @@ preprocess (Program pos topDefs) = Program pos $ preprocessTopDefs topDefs
 (<.>) :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe (a -> a)
 (<.>) fn1 fn2 = (.) <$> fn1 <*> fn2 
 
+shows_ :: String -> ShowS
+shows_ = (++)
+
 posPart :: BNFC'Position -> ShowS
-posPart Nothing = shows ""
-posPart (Just pos) = shows " at" . shows pos
+posPart Nothing = shows_ ""
+posPart (Just pos) = shows_ " at" . shows pos
 
 consecutive :: Int -> [Int]
 consecutive n =

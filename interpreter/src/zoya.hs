@@ -12,6 +12,10 @@ import TypeChecker (typeCheckProgram)
 
 type Handler = Program -> ((Either String Value, [String]), StateType)
 
+newtype NoQuotes = NoQuotes String
+
+instance Show NoQuotes where show (NoQuotes str) = str
+
 runFile :: Handler -> FilePath -> IO ()
 runFile p f = putStrLn f >> readFile f >>= run p
 
@@ -30,7 +34,7 @@ run p s =
   where
     lexed = myLexer s
     tok = pProgram lexed
-    handleErr = hPrint stderr
+    handleErr = hPrint stderr . NoQuotes
     handleOk program =
       let preprocessed = preprocess program
           ((res, interpreterLog), state) = p preprocessed
