@@ -85,7 +85,7 @@ createZoyaTypeConstructor typeName l = makeLambda pL
 parseType :: Type -> ZoyaType
 parseType (TypeInt pos) = IntType
 parseType (TypeBool pos) = BoolType
-parseType (TypePoly pos token) = PolyType token
+parseType (TypePoly pos token) = PolyType token -- FIXME poly types should be mapped to unique ids
 parseType (TypeFn pos arg res) = FunType (parseType arg) (parseType res)
 parseType (TypeCustom pos name args) = CustomType name (map parseType args)
 parseType (TypeBrackets pos t) = parseType t
@@ -148,10 +148,7 @@ inferType (EFApp pos fnExpr argExpr) = do
   outerEnv <- ask
   fn <- inferType fnExpr
   case fn of
-    FunType argType retType -> do
-      throwError "Unimplemnted"
-    -- if eq then return expected else throwError $ typeMismatchError expected actual pos
-    -- checkType argType (inferType argExpr) pos >> return retType
+    FunType argType retType -> checkType argType (inferType argExpr) pos >> return retType -- FIXME poly types
     _ -> throwError $ shows "tried to call not function" . posPart pos $ ""
 inferType (ELitInt _ int) = return IntType
 inferType (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
@@ -174,28 +171,29 @@ checkType expected actualM pos = do
   if eq then return expected else throwError $ typeMismatchError expected actual pos
 
 typesEqual :: ZoyaType -> ZoyaType -> PolyMap -> Bool
-typesEqual expected actual polyM = do
-  case expected of
-    IntType -> canBe IntType actual polyM
-    FunType argType retType -> case actual of
-      FunType actArgType actRetType -> False -- not implemented
-      _ -> False
-    BoolType -> canBe BoolType actual polyM
-    CustomType typeName zoyaTypes -> False -- not implemented
-    PolyType name -> polyOk name actual polyM
-  where
-    polyOk :: PolyIdentToken -> ZoyaType -> PolyMap -> Bool
-    polyOk name actual polyM = case Map.lookup name polyM of
-      Nothing -> True
-      Just (t, _) -> typesEqual t actual polyM
-    canBe :: ZoyaType -> ZoyaType -> PolyMap -> Bool
-    canBe ex act polyM = ex == act || exPoly ex act polyM || actPoly ex act polyM
-    exPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
-    exPoly ex act polyM = case ex of
-      PolyType name -> polyOk name act polyM
-      _ -> False
-    actPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
-    actPoly ex act polyM = False
+typesEqual expected actual polyM = expected == actual -- FIXME poly types.
+
+-- case expected of
+--   IntType -> canBe IntType actual polyM
+--   FunType argType retType -> case actual of
+--     FunType actArgType actRetType -> False -- not implemented
+--     _ -> False
+--   BoolType -> canBe BoolType actual polyM
+--   CustomType typeName zoyaTypes -> False -- not implemented
+--   PolyType name -> polyOk name actual polyM
+-- where
+--   polyOk :: PolyIdentToken -> ZoyaType -> PolyMap -> Bool
+--   polyOk name actual polyM = case Map.lookup name polyM of
+--     Nothing -> True
+--     Just (t, _) -> typesEqual t actual polyM
+--   canBe :: ZoyaType -> ZoyaType -> PolyMap -> Bool
+--   canBe ex act polyM = ex == act || exPoly ex act polyM || actPoly ex act polyM
+--   exPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
+--   exPoly ex act polyM = case ex of
+--     PolyType name -> polyOk name act polyM
+--     _ -> False
+--   actPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
+--   actPoly ex act polyM = False
 
 typeMismatchError :: ZoyaType -> ZoyaType -> BNFC'Position -> String
 typeMismatchError expected actual pos = shows "type mismatch, expected: " . shows expected . shows ", actual:" . shows actual . posPart pos $ ""
@@ -235,8 +233,7 @@ inferTypeMatch (Match pos expr arms) = do
     checkMatchTypeArg (MatchArmVariantTypeArgumentIdent pos varName, t) = return $ Just $ \e -> e {vars = Map.insert varName (t, pos) $ vars e}
 
 typeCheck :: Program -> TypeCheck Env
-typeCheck (Program _ topDefs) = do
-  typeCheckTopDefs topDefs
+typeCheck (Program _ topDefs) = typeCheckTopDefs topDefs
 
 typeCheckProgram :: Program -> (Either String (), [String])
 typeCheckProgram program = runTypeCheck newEnv (void $ typeCheck program)
