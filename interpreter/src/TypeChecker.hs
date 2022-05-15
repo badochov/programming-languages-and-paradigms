@@ -159,9 +159,10 @@ inferType (EFApp pos fnExpr argExpr) = do
   fn <- inferType fnExpr
   case fn of
     FunType argType retType -> checkType argType (inferType argExpr) pos >> return retType -- FIXME poly types
-    _ -> throwError $ shows_ "tried to call not function" . posPart pos $ ""
+    _ -> trace (show fn) throwError $ shows_ "tried to call not function" . posPart pos $ ""
 inferType (ELitInt _ int) = return IntType
 inferType (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
+inferType (ELitListEmpty pos _) = throwError shouldHaveBeenProccessedError
 inferType (EBrackets pos expr) = inferType expr
 inferType (ENeg pos expr) = do
   checkType IntType (inferType expr) pos
@@ -251,6 +252,7 @@ inferTypeMatch (Match pos expr arms) = do
     checkMatch (MatchArmVar pos varName) t = const <$> defineType varName t pos
     checkMatch (MatchArmFallback pos) val = return id
     checkMatch MatchArmList {} val = throwError shouldHaveBeenProccessedError
+    checkMatch (MatchArmBrackets pos m) val = checkMatch m val
     checkMatchTypeArgs :: [(MatchArmVariantTypeArgument, ZoyaType)] -> TypeCheck (Env -> Env)
     checkMatchTypeArgs [] = return id
     checkMatchTypeArgs (h : t) = (.) <$> checkMatchTypeArg h <*> checkMatchTypeArgs t

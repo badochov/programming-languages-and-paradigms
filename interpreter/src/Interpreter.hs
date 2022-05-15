@@ -122,6 +122,7 @@ evalExpr (EFApp pos fnExpr argExpr) = do
     _ -> throwError $ typeErr pos
 evalExpr (ELitInt _ int) = return $ IntVal int
 evalExpr (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
+evalExpr (ELitListEmpty pos _) = throwError shouldHaveBeenProccessedError
 evalExpr (EBrackets pos expr) = evalExpr expr
 evalExpr (ENeg pos expr) = do
   val <- evalExpr expr
@@ -199,6 +200,7 @@ evalMatch (Match pos expr arms) = do
     checkMatch (MatchArmVar pos varName) val = return $ Just $ Map.insert varName $ Right val
     checkMatch (MatchArmFallback pos) val = return $ Just id
     checkMatch MatchArmList {} val = throwError shouldHaveBeenProccessedError
+    checkMatch (MatchArmBrackets pos m) val = checkMatch m val
     checkMatchTypeArgs :: [(MatchArmVariantTypeArgument, StackPosOrValue)] -> Eval (Maybe( Env -> Env))
     checkMatchTypeArgs [] = return $ Just id
     checkMatchTypeArgs (h : t) = do

@@ -1,0 +1,4 @@
+type List = Node Int List | Empty;
+
+main : List = match [42]
+    \ a:b -> a:b;

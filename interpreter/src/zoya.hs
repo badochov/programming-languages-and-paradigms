@@ -7,14 +7,10 @@ import Grammar.Par (myLexer, pProgram)
 import Grammar.Skel ()
 import Interpreter (StateType, Value, interpret, newState)
 import System.Environment (getArgs)
-import System.IO (hPrint, stderr)
+import System.IO (hPrint, stderr, hPutStrLn)
 import TypeChecker (typeCheckProgram)
 
 type Handler = Program -> ((Either String Value, [String]), StateType)
-
-newtype NoQuotes = NoQuotes String
-
-instance Show NoQuotes where show (NoQuotes str) = str
 
 runFile :: Handler -> FilePath -> IO ()
 runFile p f = putStrLn f >> readFile f >>= run p
@@ -34,11 +30,12 @@ run p s =
   where
     lexed = myLexer s
     tok = pProgram lexed
-    handleErr = hPrint stderr . NoQuotes
+    handleErr = hPutStrLn stderr
     handleOk program =
       let preprocessed = preprocess program
           ((res, interpreterLog), state) = p preprocessed
        in do
+            print preprocessed
             print interpreterLog
             case res of
               Left err -> handleErr err

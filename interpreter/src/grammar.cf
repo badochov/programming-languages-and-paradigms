@@ -38,6 +38,7 @@ EVar.           Expr8 ::= VarName ;
 EType.          Expr8 ::= TypeName ;
 ELitInt.        Expr8 ::= Integer ;
 ELitList.       Expr8 ::= "[" [ListArg] "]" ;
+ELitListEmpty.  Expr8 ::= ListEmpty ;
 EBrackets.      Expr8 ::= "(" Expr ")" ;
 
 EFApp.          Expr7 ::= Expr Expr8 ;
@@ -64,7 +65,8 @@ EOr.            Expr ::= Expr1 "\\/" Expr ;
 coercions       Expr 9 ;
 
 ListArg.        ListArg ::= Expr ;
-separator       ListArg "," ;
+ListEmpty.      ListEmpty ::= "[]" ;
+separator       nonempty ListArg "," ;
 separator       VarName " " ;
 separator       nonempty Expr8 " " ;
 
@@ -72,15 +74,16 @@ separator       nonempty Expr8 " " ;
 
 Match.                                      Match ::= "match" Expr [MatchArm] ;
 
-MatchArm.                                   MatchArm ::= "|" MatchArmSpecifier "->" Expr ;
+MatchArm.                                   MatchArm ::= "\\" MatchArmSpecifier "->" Expr ;
 
-MatchArmListEmpty.                          MatchArmSpecifierList ::= "[]" ;
+MatchArmListEmpty.                          MatchArmSpecifierList ::= ListEmpty ;
 MatchArmListHeadTail.                       MatchArmSpecifierList ::= MatchArmSpecifier ":" MatchArmSpecifier ;
 
-MatchArmList.                               MatchArmSpecifier ::= MatchArmSpecifierList ;
 MatchArmType.                               MatchArmSpecifier ::= TypeName [MatchArmVariantTypeArgument] ;
 MatchArmVar.                                MatchArmSpecifier ::= VarName ;
 MatchArmFallback.                           MatchArmSpecifier ::= "_" ;
+MatchArmList.                               MatchArmSpecifier ::= MatchArmSpecifierList ;
+MatchArmBrackets.                           MatchArmSpecifier ::= "(" MatchArmSpecifier ")" ;
 
 MatchArmVariantTypeArgumentIdent.           MatchArmVariantTypeArgument ::= VarName ;
 MatchArmVariantTypeArgumentFallback.        MatchArmVariantTypeArgument ::= "_" ;

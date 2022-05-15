@@ -9,9 +9,10 @@ listEmptyTypeName :: TypeName
 listEmptyTypeName = TypeName "Empty"
 
 preproccesExpr :: Expr -> Expr
+preproccesExpr (ELitListEmpty pos _) = EType pos listEmptyTypeName
 preproccesExpr (ELitList pos []) = EType pos listEmptyTypeName
-preproccesExpr (ELitList pos ((ListArg argPos h) : t)) = preproccesExpr $ makeTApp argPos listEmptyTypeName [h, ELitList pos t]
-preproccesExpr (EListEx pos headExpr tailExpr) = makeTApp pos listNodeTypeName [headExpr, tailExpr]
+preproccesExpr (ELitList pos ((ListArg argPos h) : t)) = preproccesExpr $ makeTApp argPos listNodeTypeName [h, ELitList pos t]
+preproccesExpr (EListEx pos headExpr tailExpr) = preproccesExpr $ makeTApp pos listNodeTypeName [headExpr, tailExpr]
 preproccesExpr (EMatch pos matchExpr) = EMatch pos (preprocessMatchExpr matchExpr)
 preproccesExpr (EBrackets pos expr) = EBrackets pos (preproccesExpr expr)
 preproccesExpr (EFApp pos expr1 expr2) = EFApp pos (preproccesExpr expr1) (preproccesExpr expr2)
@@ -31,7 +32,7 @@ makeTApp :: BNFC'Position -> TypeName -> [Expr] -> Expr
 makeTApp pos tName = makeFApp' (EType pos tName) pos
   where
     makeFApp' applyTo pos [] = applyTo
-    makeFApp' applyTo pos (h : t) = makeFApp' (EFApp pos applyTo h) pos t
+    makeFApp' applyTo pos (h : t) = EBrackets pos (makeFApp' (EFApp pos applyTo h) pos t)
 
 preprocessMatchExpr :: Match -> Match
 preprocessMatchExpr (Match pos expr arms) = Match pos (preproccesExpr expr) (map preprocessArm arms)
@@ -42,6 +43,7 @@ preprocessArm (MatchArm pos spec expr) = MatchArm pos (preproccesArmSpec spec) (
 preproccesArmSpec :: MatchArmSpecifier -> MatchArmSpecifier
 preproccesArmSpec (MatchArmList pos listSpec) = preprocessListSpec listSpec
 preproccesArmSpec (MatchArmType pos typename args) = MatchArmType pos typename (map preprocessVariantTypeArg args)
+preproccesArmSpec (MatchArmBrackets pos m) = MatchArmBrackets pos (preproccesArmSpec m)
 preproccesArmSpec armSpec = armSpec
 
 preprocessVariantTypeArg :: MatchArmVariantTypeArgument -> MatchArmVariantTypeArgument
@@ -49,7 +51,7 @@ preprocessVariantTypeArg (MatchArmVariantTypeArgumentNested pos armSpec) = Match
 preprocessVariantTypeArg vTypeArg = vTypeArg
 
 preprocessListSpec :: MatchArmSpecifierList -> MatchArmSpecifier
-preprocessListSpec (MatchArmListEmpty pos) = MatchArmType pos listEmptyTypeName []
+preprocessListSpec (MatchArmListEmpty pos _) = MatchArmType pos listEmptyTypeName []
 preprocessListSpec (MatchArmListHeadTail pos head tail) = MatchArmType pos listNodeTypeName (map toVariantTypeArg [head, tail])
   where
     toVariantTypeArg armSpec = MatchArmVariantTypeArgumentNested pos (preproccesArmSpec armSpec)
@@ -71,14 +73,14 @@ preprocess :: Program -> Program
 preprocess (Program pos topDefs) = Program pos $ preprocessTopDefs topDefs
 
 (<.>) :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe (a -> a)
-(<.>) fn1 fn2 = (.) <$> fn1 <*> fn2 
+(<.>) fn1 fn2 = (.) <$> fn1 <*> fn2
 
 shows_ :: String -> ShowS
 shows_ = (++)
 
 posPart :: BNFC'Position -> ShowS
 posPart Nothing = shows_ ""
-posPart (Just pos) = shows_ " at" . shows pos
+posPart (Just (line, col)) = shows_ " at line " . shows line . shows_ " column " . shows col
 
 consecutive :: Int -> [Int]
 consecutive n =

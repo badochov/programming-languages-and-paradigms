@@ -9,7 +9,7 @@ full:
 	-make parser
 	-make interpreter
 
-interpreter: src/zoya.hs src/Interpreter.hs src/TypeChecker.hs src/Grammar/Abs.hs
+interpreter: src/zoya.hs src/Interpreter.hs src/TypeChecker.hs src/Grammar/Abs.hs src/Common.hs
 	-cd src && ${GHC} ${GHC_FLAGS} zoya.hs -o ../interpreter
 
 parser: src/grammar.cf
