@@ -12,7 +12,7 @@ import Data.Typeable (typeOf)
 import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
-import Common ((<.>), posPart, consecutive)
+import Common ((<.>), posPart, consecutive, shows_)
 
 type StackPosOrValue = Either Int Value
 
@@ -140,8 +140,8 @@ evalExpr (EMul pos lExpr mulOp rExpr) = do
   case (lVal, rVal) of
     (IntVal l, IntVal r) -> case mulOp of
       (Times _) -> return $ IntVal (l * r)
-      (Div _) -> if r == 0 then throwError $ shows "division by zero" . posPart pos $ "" else return $ IntVal (l `div` r)
-      (Mod _) -> if r == 0 then throwError $ shows "modulo by zero" . posPart pos $ "" else return $ IntVal (l `mod` r)
+      (Div _) -> if r == 0 then throwError $ shows_ "division by zero" . posPart pos $ "" else return $ IntVal (l `div` r)
+      (Mod _) -> if r == 0 then throwError $ shows_ "modulo by zero" . posPart pos $ "" else return $ IntVal (l `mod` r)
     _ -> throwError $ typeErr pos
 evalExpr (EAdd pos lExpr addOp rExpr) = do
   lVal <- evalExpr lExpr
@@ -186,7 +186,7 @@ evalMatch (Match pos expr arms) = do
   val <- evalExpr expr
   evalMatch' val arms
   where
-    evalMatch' val [] = throwError $ shows "couldn't match expression" . posPart pos $ ""
+    evalMatch' val [] = throwError $ shows_ "couldn't match expression" . posPart pos $ ""
     evalMatch' val ((MatchArm pos specifier expr) : t) = do
       envChangerM <- checkMatch specifier val
       case envChangerM of
@@ -215,7 +215,7 @@ evalMatch (Match pos expr arms) = do
     checkMatchTypeArg (MatchArmVariantTypeArgumentIdent _ varName, stackPos) = return $ Just $ Map.insert varName stackPos
 
 typeErr :: BNFC'Position -> String
-typeErr pos = shows "type error" . posPart pos $ ""
+typeErr pos = shows_ "type error" . posPart pos $ ""
 
 eval :: Program -> Eval Value
 eval (Program _ topDefs) = do
