@@ -1,14 +1,16 @@
 module TypeChecker where
 
-import Common (posPart, (<.>))
+import Common (consecutive, posPart, (<.>))
 import Control.Monad (foldM, void)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
 import Control.Monad.Writer (MonadWriter (tell), WriterT (runWriterT))
+import qualified Data.Bifunctor
 import Data.Map ((!))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust, isNothing)
+import qualified Data.Set as Set (Set, empty, insert)
 import Data.Typeable (typeOf)
 import Debug.Trace (trace)
 import Distribution.ModuleName (main)
@@ -17,9 +19,14 @@ import Grammar.Abs
 
 type PolyMap = Map.Map PolyIdentToken (ZoyaType, BNFC'Position)
 
+type VariantT = (Set.Set TypeName, BNFC'Position)
+
+type TypeVariant = (TypeName, ZoyaType, BNFC'Position)
+
 data Env = Env
   { vars :: Map.Map VarName (ZoyaType, BNFC'Position),
-    custTypes :: Map.Map TypeName (ZoyaType, BNFC'Position),
+    variantTypes :: Map.Map TypeName VariantT,
+    typeVariants :: Map.Map TypeName TypeVariant,
     poly :: PolyMap
   }
 
@@ -38,32 +45,46 @@ typeCheckTopDefs [] = ask
 
 typeCheckTopDef :: TopDef -> TypeCheck Env
 typeCheckTopDef (TopDefVar _ varDef) = typeCheckVarDef varDef
-typeCheckTopDef (TopDefType _ _ []) = ask
-typeCheckTopDef (TopDefType pos name (h : t)) = do
-  env <- typeCheckVariantType h name
-  local (const env) $ typeCheckTopDef $ TopDefType pos name t
+typeCheckTopDef (TopDefType pos name variants) = do
+  prevDef <- getVariantType name
+  case prevDef of
+    Nothing -> local (\e -> e {variantTypes = Map.insert name (Set.empty, pos) $ variantTypes e}) (handleVariantTypes variants)
+    Just (t, pos) -> throwError $ variantTypeRedefinitionError pos
+  where
+    handleVariantTypes (h : t) = do
+      env <- typeCheckVariantType h name
+      local (const env) $ typeCheckTopDef $ TopDefType pos name t
+    handleVariantTypes [] = ask
+    variantTypeRedefinitionError orgPos = shows "redefinition of variant type " . shows name . posPart pos . shows ", previosly defined" . posPart orgPos $ ""
+
+getVariantType :: TypeName -> TypeCheck (Maybe VariantT)
+getVariantType t = asks (Map.lookup t . variantTypes)
+
+getTypeVariant :: TypeName -> TypeCheck (Maybe TypeVariant)
+getTypeVariant t = asks (Map.lookup t . typeVariants)
 
 typeCheckVariantType :: VariantType -> TypeName -> TypeCheck Env
-typeCheckVariantType (VariantType pos variantName vals) typeName = ask
+typeCheckVariantType (VariantType pos variantName vals) typeName = do
+  prevDef <- getVariantType variantName
+  case prevDef of
+    Nothing -> do
+      let t = createZoyaTypeConstructor variantName vals
+      asks (\e -> e {typeVariants = Map.insert variantName (typeName, t, pos) $ typeVariants e, variantTypes = addVariant e})
+    Just (t, pos) -> throwError $ typeVariantRedefinitionError pos
+  where
+    typeVariantRedefinitionError orgPos = shows "redefinition of type variant " . shows variantName . posPart pos . shows ", previosly defined" . posPart orgPos $ ""
+    addVariant env = Map.adjust (Data.Bifunctor.first (Set.insert variantName)) typeName $ variantTypes env
 
--- createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [VariantTypeArgument] -> Value
--- createZoyaTypeConstructor pos typeName l = makeLambda typeConstructor pos numArgs
---   where
---     numArgs = length l
---     toVarName = VarName . show
---     typeConstructor = ETypeHelper pos typeName (map toVarName $ consecutive numArgs)
---     makeLambda :: Expr -> BNFC'Position -> Int -> Value
---     makeLambda applyTo pos 0 = CustomType typeName []
---     makeLambda applyTo pos 1 = FunVal newEnv (toVarName 1) applyTo
---     makeLambda applyTo pos n = makeLambda (ELambda pos (toVarName n) typePart applyTo) pos (n -1)
---     typePart = TypeInt Nothing -- random type as it's not checked
-
--- consecutive :: Int -> [Int]
--- consecutive n =
---   consecutive' [] n
---   where
---     consecutive' acc 0 = acc
---     consecutive' acc n = consecutive' (n : acc) (n -1)
+createZoyaTypeConstructor :: TypeName -> [Type] -> ZoyaType
+createZoyaTypeConstructor typeName l = makeLambda typeConstructor pL
+  where
+    pL = map parseVariantTypeArgument l
+    numArgs = length l
+    toVarName = VarName . show
+    typeConstructor = CustomType typeName pL
+    makeLambda :: ZoyaType -> [ZoyaType] -> ZoyaType
+    makeLambda applyTo [] = applyTo
+    makeLambda applyTo (h:t) = FunType h (applyTo t)
 
 parseType :: Type -> ZoyaType
 parseType (TypeInt pos) = IntType
@@ -121,8 +142,8 @@ inferType (EVar pos varName) = do
     Nothing -> throwError $ shows "use of undeclared variable " . shows varName . posPart pos $ ""
 inferType (EType pos typeName) = do
   env <- ask
-  case Map.lookup typeName $ custTypes env of
-    Just (t, pos) -> return t
+  case Map.lookup typeName $ typeVariants env of
+    Just (name, t, pos) -> return t
     Nothing -> throwError $ shows "use of undeclared type " . shows typeName . posPart pos $ ""
 inferType (ETypeHelper pos typeName args) = do
   argsTypes <- mapM (inferType . EVar pos) args
@@ -133,8 +154,8 @@ inferType (EFApp pos fnExpr argExpr) = do
   case fn of
     FunType argType retType -> do
       throwError "Unimplemnted"
-      -- if eq then return expected else throwError $ typeMismatchError expected actual pos
-      -- checkType argType (inferType argExpr) pos >> return retType
+    -- if eq then return expected else throwError $ typeMismatchError expected actual pos
+    -- checkType argType (inferType argExpr) pos >> return retType
     _ -> throwError $ shows "tried to call not function" . posPart pos $ ""
 inferType (ELitInt _ int) = return IntType
 inferType (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
@@ -164,7 +185,7 @@ typesEqual expected actual polyM = do
       FunType actArgType actRetType -> False -- not implemented
       _ -> False
     BoolType -> canBe BoolType actual polyM
-    CustomType typeName zoyaTypes -> _
+    CustomType typeName zoyaTypes -> False -- not implemented
     PolyType name -> polyOk name actual polyM
   where
     polyOk :: PolyIdentToken -> ZoyaType -> PolyMap -> Bool
@@ -225,4 +246,4 @@ typeCheckProgram :: Program -> (Either String (), [String])
 typeCheckProgram program = runTypeCheck newEnv (void $ typeCheck program)
 
 newEnv :: Env
-newEnv = Env {vars = Map.empty, poly = Map.empty, custTypes = Map.empty}
+newEnv = Env {vars = Map.empty, poly = Map.empty, variantTypes = Map.empty, typeVariants = Map.empty}

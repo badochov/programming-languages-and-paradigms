@@ -12,7 +12,7 @@ import Data.Typeable (typeOf)
 import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
-import Common ((<.>), posPart)
+import Common ((<.>), posPart, consecutive)
 
 type StackPosOrValue = Either Int Value
 
@@ -66,7 +66,7 @@ evalVariantType (VariantType pos variantName vals) typeName = do
       }
   ask
 
-createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [VariantTypeArgument] -> Value
+createZoyaTypeConstructor :: BNFC'Position -> TypeName -> [Type] -> Value
 createZoyaTypeConstructor pos typeName l = makeLambda typeConstructor pos numArgs
   where
     numArgs = length l
@@ -77,13 +77,6 @@ createZoyaTypeConstructor pos typeName l = makeLambda typeConstructor pos numArg
     makeLambda applyTo pos 1 = FunVal newEnv (toVarName 1) applyTo
     makeLambda applyTo pos n = makeLambda (ELambda pos (toVarName n) typePart applyTo) pos (n -1)
     typePart = TypeInt Nothing -- random type as it's not checked 
-
-consecutive :: Int -> [Int]
-consecutive n =
-  consecutive' [] n
-  where
-    consecutive' acc 0 = acc
-    consecutive' acc n = consecutive' (n : acc) (n -1)
 
 evalVarDef :: VarDef -> Eval Env
 evalVarDef (VarDef pos name _ expr) = do

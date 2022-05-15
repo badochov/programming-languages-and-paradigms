@@ -9,16 +9,12 @@ Program.                        Program ::= [TopDef] ;
 TopDefVar.                      TopDef ::= VarDef ";" ;
 TopDefType.                     TopDef ::= "type" TypeName "=" [VariantType] ";" ;
 
-VariantType.                    VariantType ::= TypeName [VariantTypeArgument] ;
-
-VariantTypeArgumentCustType.    VariantTypeArgument ::= "(" VariantType ")" ;
-VariantTypeArgumentType.        VariantTypeArgument ::= Type ;
+VariantType.                    VariantType ::= TypeName [Type] ;
 
 VarDef.	                        VarDef ::= VarName ":" Type "=" Expr ;
 
 separator                       nonempty TopDef "\n" ;
 separator                       nonempty VariantType "|" ;
-separator                       VariantTypeArgument " " ;
 
 -- Types ---------------------------------------------------
 

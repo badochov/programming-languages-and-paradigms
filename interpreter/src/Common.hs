@@ -76,3 +76,10 @@ preprocess (Program pos topDefs) = Program pos $ preprocessTopDefs topDefs
 posPart :: BNFC'Position -> ShowS
 posPart Nothing = shows ""
 posPart (Just pos) = shows " at" . shows pos
+
+consecutive :: Int -> [Int]
+consecutive n =
+  consecutive' [] n
+  where
+    consecutive' acc 0 = acc
+    consecutive' acc n = consecutive' (n : acc) (n -1)
