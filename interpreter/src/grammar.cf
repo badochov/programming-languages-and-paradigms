@@ -7,13 +7,15 @@ token TypeName (upper (letter | digit | '_')*) ;
 Program.                        Program ::= [TopDef] ;
 
 TopDefVar.                      TopDef ::= VarDef ";" ;
-TopDefType.                     TopDef ::= "type" TypeName "=" [VariantType] ";" ;
+-- TopDefType.                     TopDef ::= "type" TypeName [PolyIdentToken] "=" [VariantType] ";" ;
+TopDefType.                     TopDef ::= "type" TypeName "=" [VariantType] ";" ; -- FIXME implement poly logic
 
 VariantType.                    VariantType ::= TypeName [Type] ;
 
 VarDef.	                        VarDef ::= VarName ":" Type "=" Expr ;
 
 separator                       nonempty TopDef "\n" ;
+separator                       PolyIdentToken "" ;
 separator                       nonempty VariantType "|" ;
 
 -- Types ---------------------------------------------------
@@ -22,7 +24,7 @@ token PolyIdentToken ('\'' lower) ;
 
 TypeInt.            Type1 ::= "Int" ;
 TypeBool.           Type1 ::= "Bool" ;
-TypePoly.           Type1 ::= PolyIdentToken ;
+-- TypePoly.           Type1 ::= PolyIdentToken ; -- FIXME implement poly logic
 TypeCustom.         Type1 ::= TypeName [Type] ;
 TypeBrackets.       Type1 ::= "(" Type ")" ;
 TypeFn.             Type ::= Type "->" Type ;

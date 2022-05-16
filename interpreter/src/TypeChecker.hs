@@ -1,6 +1,6 @@
 module TypeChecker where
 
-import Common (consecutive, posPart, (<.>), shows_)
+import Common (consecutive, posPart, shows_, (<.>))
 import Control.Exception (throw)
 import Control.Monad (foldM, void)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
@@ -31,6 +31,7 @@ data Env = Env
     typeVariants :: Map.Map TypeName TypeVariant,
     poly :: PolyMap
   }
+  deriving (Show)
 
 type TypeCheck a = ReaderT Env (ExceptT String (WriterT [String] Identity)) a
 
@@ -93,7 +94,7 @@ createZoyaTypeConstructor typeName = makeLambda
 parseType :: Type -> TypeCheck ZoyaType
 parseType (TypeInt pos) = return IntType
 parseType (TypeBool pos) = return BoolType
-parseType (TypePoly pos token) = return $ PolyType token -- FIXME poly types should be mapped to unique ids
+-- parseType (TypePoly pos token) = return $ PolyType token -- FIXME poly types should be mapped to unique ids
 parseType (TypeFn pos arg res) = FunType <$> parseType arg <*> parseType res
 parseType (TypeCustom pos name args) = do
   vT <- asks variantTypes
@@ -159,7 +160,7 @@ inferType (EFApp pos fnExpr argExpr) = do
   fn <- inferType fnExpr
   case fn of
     FunType argType retType -> checkType argType (inferType argExpr) pos >> return retType -- FIXME poly types
-    _ -> trace (show fn) throwError $ shows_ "tried to call not function" . posPart pos $ ""
+    _ -> throwError $ shows_ "tried to call not function" . posPart pos $ ""
 inferType (ELitInt _ int) = return IntType
 inferType (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
 inferType (ELitListEmpty pos _) = throwError shouldHaveBeenProccessedError
@@ -221,8 +222,7 @@ inferTypeMatch (Match pos expr arms) = do
     inferTypeMatch' val [] (Just t) = return t
     inferTypeMatch' val [] Nothing = throwError $ shows_ "empty match" . posPart pos $ ""
     inferTypeMatch' val ((MatchArm pos specifier expr) : t) prevType = do
-      envChanger <- checkMatch specifier val
-      newEnv <- asks envChanger
+      newEnv <- checkMatch specifier val
       exprType <- local (const newEnv) $ inferType expr
       case prevType of
         Nothing -> inferTypeMatch' val t (Just exprType)
@@ -233,7 +233,7 @@ inferTypeMatch (Match pos expr arms) = do
     wrongNumberOfTypeArgs tn pos = shows_ "wrong number of arguemnts to type variant " . shows tn . posPart pos $ ""
     wrongVariantError :: TypeName -> TypeName -> BNFC'Position -> String
     wrongVariantError variantType typeVariant pos = shows typeVariant . shows_ " is not variant of " . shows variantType . posPart pos $ ""
-    checkMatch :: MatchArmSpecifier -> ZoyaType -> TypeCheck (Env -> Env)
+    checkMatch :: MatchArmSpecifier -> ZoyaType -> TypeCheck Env
     checkMatch (MatchArmType pos typeName args) val = case val of
       CustomType tn -> do
         env <- ask
@@ -249,17 +249,19 @@ inferTypeMatch (Match pos expr arms) = do
                       else throwError $ wrongNumberOfTypeArgs tn pos
           else throwError $ wrongVariantError tn typeName pos
       _ -> throwError $ shows_ "tried to match: " . shows val . posPart pos $ ""
-    checkMatch (MatchArmVar pos varName) t = const <$> defineType varName t pos
-    checkMatch (MatchArmFallback pos) val = return id
+    checkMatch (MatchArmVar pos varName) t = defineType varName t pos
+    checkMatch (MatchArmFallback pos) val = ask
     checkMatch MatchArmList {} val = throwError shouldHaveBeenProccessedError
     checkMatch (MatchArmBrackets pos m) val = checkMatch m val
-    checkMatchTypeArgs :: [(MatchArmVariantTypeArgument, ZoyaType)] -> TypeCheck (Env -> Env)
-    checkMatchTypeArgs [] = return id
-    checkMatchTypeArgs (h : t) = (.) <$> checkMatchTypeArg h <*> checkMatchTypeArgs t
-    checkMatchTypeArg :: (MatchArmVariantTypeArgument, ZoyaType) -> TypeCheck (Env -> Env)
+    checkMatchTypeArgs :: [(MatchArmVariantTypeArgument, ZoyaType)] -> TypeCheck Env
+    checkMatchTypeArgs [] = ask
+    checkMatchTypeArgs (h : t) = do
+      env <- checkMatchTypeArg h
+      local (const env) $ checkMatchTypeArgs t
+    checkMatchTypeArg :: (MatchArmVariantTypeArgument, ZoyaType) -> TypeCheck Env
     checkMatchTypeArg (MatchArmVariantTypeArgumentNested _ specifier, t) = checkMatch specifier t
-    checkMatchTypeArg (MatchArmVariantTypeArgumentFallback _, _) = return id
-    checkMatchTypeArg (MatchArmVariantTypeArgumentIdent pos varName, t) = return $ \e -> e {vars = Map.insert varName (t, pos) $ vars e}
+    checkMatchTypeArg (MatchArmVariantTypeArgumentFallback _, _) = ask
+    checkMatchTypeArg (MatchArmVariantTypeArgumentIdent pos varName, t) = defineType varName t pos
 
 typeCheck :: Program -> TypeCheck Env
 typeCheck (Program _ topDefs) = typeCheckTopDefs topDefs

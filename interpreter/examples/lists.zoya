@@ -1,4 +1,4 @@
 type List = Node Int List | Empty;
 
 main : List = match [42]
-    \ a:b -> a:b;
+    \ a:(b:c) -> a:(b:c);

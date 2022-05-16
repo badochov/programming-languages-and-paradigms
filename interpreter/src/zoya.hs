@@ -35,7 +35,6 @@ run p s =
       let preprocessed = preprocess program
           ((res, interpreterLog), state) = p preprocessed
        in do
-            print preprocessed
             print interpreterLog
             case res of
               Left err -> handleErr err
