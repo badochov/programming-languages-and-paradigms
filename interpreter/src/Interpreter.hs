@@ -1,6 +1,7 @@
 module Interpreter where
 
-import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Common (consecutive, posPart, shows_, (<.>))
+import Control.Monad.Except (ExceptT, MonadError (catchError), runExceptT, throwError)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
 import Control.Monad.State (MonadState (get, put, state), State, StateT (runStateT), modify)
@@ -12,7 +13,6 @@ import Data.Typeable (typeOf)
 import Debug.Trace (trace)
 import Distribution.ModuleName (main)
 import Grammar.Abs
-import Common ((<.>), posPart, consecutive, shows_)
 
 type StackPosOrValue = Either Int Value
 
@@ -76,7 +76,7 @@ createZoyaTypeConstructor pos typeName l = makeLambda typeConstructor pos numArg
     makeLambda applyTo pos 0 = CustomType typeName []
     makeLambda applyTo pos 1 = FunVal newEnv (toVarName 1) applyTo
     makeLambda applyTo pos n = makeLambda (ELambda pos (toVarName n) typePart applyTo) pos (n -1)
-    typePart = TypeInt Nothing -- random type as it's not checked 
+    typePart = TypeInt Nothing -- random type as it's not checked
 
 evalVarDef :: VarDef -> Eval Env
 evalVarDef (VarDef pos name _ expr) = do
@@ -88,7 +88,7 @@ evalVarDef (VarDef pos name _ expr) = do
   return env'
 
 evalExpr :: Expr -> Eval Value
-evalExpr (ELambda pos argName _  expr) = do
+evalExpr (ELambda pos argName _ expr) = do
   env <- ask
   return $ FunVal env argName expr
 evalExpr (EMatch pos match) = evalMatch match
@@ -111,15 +111,19 @@ evalExpr (EType pos typeName) = do
 evalExpr (ETypeHelper pos typeName args) = do
   env <- ask
   return $ CustomType typeName $ map (env !) args
-evalExpr (EFApp pos fnExpr argExpr) = do
-  outerEnv <- ask
-  fn <- evalExpr fnExpr
-  case fn of
-    FunVal fEnv argName expr -> do
-      state <- get
-      put $ state {stack = addToStack (stack state) argExpr pos outerEnv}
-      local (const (Map.insert argName (Left $top $ stack state) fEnv)) (evalExpr expr)
-    _ -> throwError $ typeErr pos
+evalExpr (EFApp pos fnExpr argExpr) = handle `catchError` wrapError
+  where
+    handle = do
+      outerEnv <- ask
+      fn <- evalExpr fnExpr
+      case fn of
+        FunVal fEnv argName expr -> do
+          state <- get
+          put $ state {stack = addToStack (stack state) argExpr pos outerEnv}
+          local (const (Map.insert argName (Left $top $ stack state) fEnv)) (evalExpr expr)
+        _ -> throwError $ typeErr pos
+    wrapError :: String -> Eval Value
+    wrapError e = throwError $ shows_ "in function aplication" . posPart pos . shows_ ":\n" $ e
 evalExpr (ELitInt _ int) = return $ IntVal int
 evalExpr (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
 evalExpr (ELitListEmpty pos _) = throwError shouldHaveBeenProccessedError
@@ -193,7 +197,7 @@ evalMatch (Match pos expr arms) = do
       case envChangerM of
         Just envChanger -> local envChanger (evalExpr expr)
         Nothing -> evalMatch' val t
-    checkMatch :: MatchArmSpecifier -> Value -> Eval (Maybe( Env -> Env))
+    checkMatch :: MatchArmSpecifier -> Value -> Eval (Maybe (Env -> Env))
     checkMatch (MatchArmType pos typeName args) val = case val of
       CustomType tn ns -> if tn == typeName && length ns == length args then checkMatchTypeArgs $ zip args ns else return Nothing
       _ -> throwError $ typeErr pos
@@ -201,13 +205,13 @@ evalMatch (Match pos expr arms) = do
     checkMatch (MatchArmFallback pos) val = return $ Just id
     checkMatch MatchArmList {} val = throwError shouldHaveBeenProccessedError
     checkMatch (MatchArmBrackets pos m) val = checkMatch m val
-    checkMatchTypeArgs :: [(MatchArmVariantTypeArgument, StackPosOrValue)] -> Eval (Maybe( Env -> Env))
+    checkMatchTypeArgs :: [(MatchArmVariantTypeArgument, StackPosOrValue)] -> Eval (Maybe (Env -> Env))
     checkMatchTypeArgs [] = return $ Just id
     checkMatchTypeArgs (h : t) = do
       fn <- checkMatchTypeArg h
       fn2 <- checkMatchTypeArgs t
       return $ fn <.> fn2
-    checkMatchTypeArg :: (MatchArmVariantTypeArgument, StackPosOrValue) -> Eval (Maybe( Env -> Env))
+    checkMatchTypeArg :: (MatchArmVariantTypeArgument, StackPosOrValue) -> Eval (Maybe (Env -> Env))
     checkMatchTypeArg (MatchArmVariantTypeArgumentNested _ specifier, sOrV) = do
       val <- case sOrV of
         Left stackPos -> execExprFromStack stackPos
