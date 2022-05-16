@@ -1,24 +1,22 @@
 # Zoya
+Rozwiązanie podzielone jest na dwie części:
+- typechecker
+    - `src/TypeCheker.hs`
+    - sprawdza poprawność typów schodząc po drzewie składniowym
+- interpreter
+    - `src/Interpreter.hs`
+    - wykonuje program nie sprawdzając poprawności typów.
 
-Zoya is a simple functional programming language. 
-It features:
-- Haskell like syntax 
-- Types:
-    - Lists of any type
-    - Ints
-    - Bools
-    - Custom recursive and polymorphic types
-- Capturing Lambdas with Rust like syntax
-- Nested Pattern matching
-- Static type checking
-- Pattern matching completeness checker
-- Execution error checking
-- Partial function application
-- Higher order functions
-- Polymorphic types
-- Type reconstruction algorithm
+Dodatkowo:
+- `src/Common.hs`
+    - funkcje potrzebne i w interpreterze i typecheckerze
+    - usuwa syntax sugar zwiazany z listami z drzewa
+        - list to poprostu typ zdefiniowany w Prelude `type List = Node Int List | Empty`
+- `build_prelude.py`
+    - prosty skrypt, który przekształca w czasie kompilacji `prelude` zdefiniowy w `src/prelude/prelude.zoya` w plik haskellowy z przeparsowanym `prelude`
+    - `prelude` jest dołączany do początku każdego programu
 
-Additionally to each program Prelude is added with usefull functions and types eg. :
-- true / false
-- list operations
-- Maybe / Either
+
+## Typy polimorficzne
+Mimo, że interpreter wspiera typy polimorficzne, niestety nie zdążyłęm napisać obsługi typów polimorficznych w typecheckerze w terminie, więc są one obecnie poza gramatyką języka.
+

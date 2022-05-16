@@ -10,16 +10,20 @@ full:
 	-make prelude
 	-make interpreter
 
-interpreter: src/zoya.hs src/Interpreter.hs src/TypeChecker.hs src/Grammar/Abs.hs src/Common.hs
+interpreter: src/zoya.hs src/Interpreter.hs src/TypeChecker.hs src/Grammar/Abs.hs src/Common.hs src/ZoyaPrelude.hs
 	-cd src && ${GHC} ${GHC_FLAGS} zoya.hs -o ../interpreter
 
-prelude: src/prelude/prelude.zoya build_prelude.py
+src/ZoyaPrelude.hs: src/prelude/prelude.zoya build_prelude.py
 	-./build_prelude.py
 
 parser: src/grammar.cf
 	-bnfc -d --functor -o src -m src/grammar.cf
 	-cd src && make
 	-rm src/Grammar/Test.hs
+
+zip:
+	-make clean
+	-zip Hubert_Badocha.zip -r . -x tabelka-cech-fun2022.txt .vscode/\* interpreter
 
 clean:
 	-cd src && make clean

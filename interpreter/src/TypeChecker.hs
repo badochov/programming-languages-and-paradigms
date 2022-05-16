@@ -119,10 +119,10 @@ defineType name zoyaType pos = do
   env <- ask
   let tE = vars env
   case Map.lookup name tE of
-    Just (_, prevPos) -> throwError $ redeclarationError prevPos
+    Just (pT, prevPos) -> if pT == zoyaType then ask else throwError $ redeclarationError prevPos
     Nothing -> return $ env {vars = Map.insert name (zoyaType, pos) tE}
   where
-    redeclarationError prevPos = shows_ "redeclaration of " . shows name . posPart pos . shows_ "has differernt type than " . posPart prevPos $ ""
+    redeclarationError prevPos = shows_ "redeclaration of " . shows name . posPart pos . shows_ ", has different type than " . posPart prevPos $ ""
 
 inferType :: Expr -> TypeCheck ZoyaType
 inferType (ELambda pos argName t expr) = do

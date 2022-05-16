@@ -1,11 +1,11 @@
-a = |fn||b||c| fn b c;
+a : (Int -> Int -> Int) -> Int -> Int -> Int = |fn: Int -> Int -> Int||b: Int||c:Int| fn b c;
 
-add = a (|x||y| x + y);
+add : Int -> Int -> Int = a (|x:Int||y:Int| x + y);
 
-add_6 = add 6;
+add_6 :Int -> Int= add 6;
 
-seven = add_6 1;
+seven :Int = add_6 1;
 
-three_or_more = |x| let res = add_6 x in if res < 3 then 3 else res;
+three_or_more : Int -> Int = |x:Int| let res:Int = add_6 x in if res < 3 then 3 else res;
 
-main = three_or_more 4;
+main : Int = three_or_more 4;
