@@ -1,5 +1,6 @@
 /src/Grammar
 /src/Makefile
+/src/ZoyaPrelude.hs
 interpreter
 /**/*.bak
 /.vscode

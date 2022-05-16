@@ -1,3 +1,4 @@
 type List = Node Int (List) | Empty;
-true = 0 == 0
-false = 0 == 1
+
+true: Bool = 0 == 0;
+false: Bool = 0 == 1;

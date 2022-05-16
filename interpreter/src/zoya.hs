@@ -1,7 +1,7 @@
 -- | Program to test parser.
 module Main where
 
-import Common (preprocess)
+import Common (preprocess, mergePrograms)
 import Grammar.Abs (Program)
 import Grammar.Par (myLexer, pProgram)
 import Grammar.Skel ()
@@ -9,6 +9,7 @@ import Interpreter (StateType, Value, interpret, newState)
 import System.Environment (getArgs)
 import System.IO (hPrint, stderr, hPutStrLn)
 import TypeChecker (typeCheckProgram)
+import ZoyaPrelude (prelude)
 
 type Handler = Program -> ((Either String Value, [String]), StateType)
 
@@ -22,17 +23,20 @@ handleInterpret p =
         Left err -> ((Left $ "TYPE CHECKER ERROR:\n" ++ err, log), newState)
         Right _ -> interpret p
 
+mergeWithPrelude :: Program -> Program
+mergeWithPrelude = mergePrograms prelude
+
 run :: Handler -> String -> IO ()
 run p s =
   case tok of
     Left err -> handleErr err
-    Right expr -> handleOk expr
+    Right prog -> handleOk prog
   where
     lexed = myLexer s
     tok = pProgram lexed
     handleErr = hPutStrLn stderr
     handleOk program =
-      let preprocessed = preprocess program
+      let preprocessed = preprocess $ mergeWithPrelude program
           ((res, interpreterLog), state) = p preprocessed
        in do
             print interpreterLog

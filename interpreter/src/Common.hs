@@ -79,8 +79,11 @@ shows_ :: String -> ShowS
 shows_ = (++)
 
 posPart :: BNFC'Position -> ShowS
-posPart Nothing = shows_ ""
+posPart Nothing = shows_ " in prelude"
 posPart (Just (line, col)) = shows_ " at line " . shows line . shows_ " column " . shows col
+
+mergePrograms :: Program -> Program -> Program
+mergePrograms (Program _ topDefs) (Program pos topDefs2)= Program pos $ topDefs ++ topDefs2
 
 consecutive :: Int -> [Int]
 consecutive n =
