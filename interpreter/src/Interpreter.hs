@@ -1,6 +1,6 @@
 module Interpreter where
 
-import Common (consecutive, posPart, shows_, (<.>), showsS_)
+import Common (consecutive, posPart, showsS_, shows_, (<.>))
 import Control.Monad.Except (ExceptT, MonadError (catchError), runExceptT, throwError)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
@@ -30,19 +30,6 @@ type Eval a = ReaderT Env (ExceptT String (WriterT [String] (StateT StateType Id
 
 data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType TypeName [StackPosOrValue] deriving (Show)
 
-prettyString :: Value -> Eval String
-prettyString (FunVal env varName expr) = return $ shows_ "function with argument" . shows varName $ ""
-prettyString (CustomType typeName args) = 
-  do
-    mArgs <- mapM toVal args
-    sArgs <- mapM prettyString mArgs
-    return $ shows_ "type " . shows typeName . showsS_ sArgs $ ""
-  where
-    toVal :: StackPosOrValue -> Eval Value
-    toVal (Left pos) = execExprFromStack pos
-    toVal (Right v) = return v
-prettyString x = return $ show x
-
 type StackValue = (Expr, BNFC'Position, Env)
 
 data Stack = Stack
@@ -50,6 +37,19 @@ data Stack = Stack
     top :: Int
   }
   deriving (Show)
+
+prettyString :: Value -> Eval String
+prettyString (FunVal env varName expr) = return $ shows_ "function with argument" . shows varName $ ""
+prettyString (CustomType typeName args) =
+  do
+    mArgs <- mapM toVal args
+    sArgs <- mapM prettyString mArgs
+    return $ shows_ "type " . shows typeName . shows_ " " . showsS_ sArgs $ ""
+  where
+    toVal :: StackPosOrValue -> Eval Value
+    toVal (Left pos) = execExprFromStack pos
+    toVal (Right v) = return v
+prettyString x = return $ show x
 
 runEval :: Env -> StateType -> Eval a -> ((Either String a, [String]), StateType)
 runEval env st ev = runIdentity (runStateT (runWriterT (runExceptT (runReaderT ev env))) st)
