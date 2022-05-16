@@ -2,3 +2,13 @@ type List = Node Int (List) | Empty;
 
 true: Bool = 0 == 0;
 false: Bool = 0 == 1;
+
+head : List -> Int = |l:List| match l 
+    \ a:_ -> a;
+
+empty : List -> Bool = |l:List| match l 
+    \ [] -> true
+    \ _ -> false;
+
+tail : List -> List  =|l:List| match l 
+    \ _:t -> t;
