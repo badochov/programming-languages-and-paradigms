@@ -6,6 +6,8 @@ Rozwiązanie podzielone jest na dwie części:
 - interpreter
     - `src/Interpreter.hs`
     - wykonuje program nie sprawdzając poprawności typów.
+    - wykonanie programu to obliczenie zmiennej `main`
+    - wykonanie programu jest leniwe
 
 Dodatkowo:
 - `src/Common.hs`

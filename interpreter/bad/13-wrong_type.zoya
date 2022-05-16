@@ -1,0 +1,6 @@
+type Data = Data Int;
+
+d : Data = Data 42;
+
+main : Bool = match d
+    \ Data a -> a;

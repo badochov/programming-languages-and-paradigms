@@ -1,0 +1,2 @@
+main : Int = match []
+    \ a : _ -> a;

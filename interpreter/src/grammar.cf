@@ -62,7 +62,7 @@ ERel.           Expr2 ::= Expr2 RelOp Expr3 ;
 
 EAnd.           Expr1 ::= Expr2 "&" Expr1 ;
 
-EOr.            Expr ::= Expr1 "\\/" Expr ;
+EOr.            Expr ::= Expr1 "^" Expr ;
 
 coercions       Expr 9 ;
 
@@ -70,7 +70,6 @@ ListArg.        ListArg ::= Expr ;
 ListEmpty.      ListEmpty ::= "[]" ;
 separator       nonempty ListArg "," ;
 separator       VarName " " ;
-separator       nonempty Expr8 " " ;
 
 -- Pattern Matching ---------------------------------------
 

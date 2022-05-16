@@ -1,0 +1,3 @@
+sum : Int -> Int -> Int = |a:Int||b:Int| a + b;
+
+main : Int = sum 1 1 1;

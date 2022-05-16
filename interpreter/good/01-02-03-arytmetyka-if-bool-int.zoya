@@ -1,0 +1,1 @@
+main : Bool = if ((6 * 9) == 42) ^ 6 != 9 then true else false;

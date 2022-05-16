@@ -1,0 +1,6 @@
+
+main : Int = 
+    let a : Int = 6 in
+        let b : Int -> Int = |x: Int| a + x in
+            let a: Int = 9 in
+                a + b a;
