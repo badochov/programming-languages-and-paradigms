@@ -1,6 +1,6 @@
 module Interpreter where
 
-import Common (consecutive, posPart, shows_, (<.>))
+import Common (consecutive, posPart, shows_, (<.>), showsS_)
 import Control.Monad.Except (ExceptT, MonadError (catchError), runExceptT, throwError)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks)
@@ -29,6 +29,19 @@ data StateType = StateType
 type Eval a = ReaderT Env (ExceptT String (WriterT [String] (StateT StateType Identity))) a
 
 data Value = IntVal Integer | FunVal Env VarName Expr | BoolVal Bool | CustomType TypeName [StackPosOrValue] deriving (Show)
+
+prettyString :: Value -> Eval String
+prettyString (FunVal env varName expr) = return $ shows_ "function with argument" . shows varName $ ""
+prettyString (CustomType typeName args) = 
+  do
+    mArgs <- mapM toVal args
+    sArgs <- mapM prettyString mArgs
+    return $ shows_ "type " . shows typeName . showsS_ sArgs $ ""
+  where
+    toVal :: StackPosOrValue -> Eval Value
+    toVal (Left pos) = execExprFromStack pos
+    toVal (Right v) = return v
+prettyString x = return $ show x
 
 type StackValue = (Expr, BNFC'Position, Env)
 
@@ -223,12 +236,13 @@ evalMatch (Match pos expr arms) = do
 typeErr :: BNFC'Position -> String
 typeErr pos = shows_ "type error" . posPart pos $ ""
 
-eval :: Program -> Eval Value
+eval :: Program -> Eval String
 eval (Program _ topDefs) = do
   env <- getDefs topDefs
-  local (const env) (evalExpr mainExpr)
+  res <- local (const env) (evalExpr mainExpr)
+  prettyString res
 
-interpret :: Program -> ((Either String Value, [String]), StateType)
+interpret :: Program -> ((Either String String, [String]), StateType)
 interpret program = runEval newEnv newState $ eval program
 
 addToStack :: Stack -> Expr -> BNFC'Position -> Env -> Stack

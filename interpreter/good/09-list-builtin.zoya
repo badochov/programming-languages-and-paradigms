@@ -1,3 +1,3 @@
 rebuild : List -> List = |l:List| if empty l then [] else head l : rebuild (tail l);
 
-main : Int = head (rebuild [4, 2, 0]);
+main : List = rebuild [4, 2, 0];

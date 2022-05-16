@@ -11,7 +11,7 @@ import System.IO (hPrint, stderr, hPutStrLn)
 import TypeChecker (typeCheckProgram)
 import ZoyaPrelude (prelude)
 
-type Handler = Program -> ((Either String Value, [String]), StateType)
+type Handler = Program -> ((Either String String, [String]), StateType)
 
 runFile :: Handler -> FilePath -> IO ()
 runFile p f = putStrLn f >> readFile f >>= run p
@@ -42,7 +42,7 @@ run p s =
             print interpreterLog
             case res of
               Left err -> handleErr err
-              Right r -> print r
+              Right r -> putStrLn r
 
 usage :: IO ()
 usage = do
