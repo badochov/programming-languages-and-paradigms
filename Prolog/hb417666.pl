@@ -2,96 +2,122 @@
 
 % use_module(library(lists))
 
+
+%%%%%%%%%%%%%%%%% BST %%%%%%%%%%%%%%%%%
+
+ins(kv(El, V), nil, bst(kv(El, V), nil, nil)).
+ins(kv(El, V), bst(kv(X, Vx), L, R), bst(kv(X2, Vx2), L2, R2)) :-
+    ( El @< X -> 
+        ins(kv(El, V), L, Nl),
+        (X, Vx, Nl, R) = (X2, Vx2, L2, R2)
+    ;
+        ( El @> X -> 
+            ins(kv(El, V), R, Nr),
+            (X, Vx, L, Nr) = (X2, Vx2, L2, R2)
+        ;
+            (X, V, L, R) = (X2, Vx2, L2, R2)
+        )
+    ).
+
+
+lookup(El, bst(kv(El, Kv), _, _), Kv).
+lookup(El, bst(kv(K, _), L, _), V) :- El @< K, lookup(El, L, V).
+lookup(El, bst(kv(K, _), _, R), V) :- El @> K, lookup(El, R, V).
+
+lookup_default(El, T, Def, Res) :- 
+    ( lookup(El, T, Res) -> 
+        Res = Res
+    ; 
+        Def = Res
+    ).
+
+has(El, T) :- lookup(El, T, _).
+
+keys(T, K) :- keys(T, [], K).
+keys(nil, Res, Res).
+keys(bst(kv(K,_), L, R), Tmp, Res) :-
+    keys(R, Tmp, Kr),
+    keys(L, [K|Kr], Res).
+
+values(T, V) :- values(T, [], V).
+values(nil, Res, Res).
+values(bst(kv(_,V), L, R), Tmp, Res) :-
+    values(R, Tmp, Vr),
+    values(L, [V|Vr], Res).
+
+keys_in([], _).
+keys_in([H|T], Tr) :-
+    has(H, Tr),
+    keys_in(T, Tr).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % correct(+Automat, -Reprezentacja)
 correct(dfa(Tf, Ss, As), R) :- 
     transform_tf(Tf, Tf_), 
     validate_tf(Tf_), 
     validate_states(Tf_, Tf, Ss, As),
-    R = odfa(Tf_, Ss, As), !.
+    R = odfa(Tf_, Ss, As).
 
-transform_tf(Tf, Res) :- transform_tf(Tf, [], Res).
+
+transform_tf(Tf, Res) :- transform_tf(Tf, nil, Res).
 transform_tf([], Res, Res).
 transform_tf([fp(S1, C, S2)|T], Cur, Res) :-
-    process_fp(S1, C, S2, Cur, [], P),
+    lookup_default(S1, Cur, nil, V), 
+    ins(kv(C, S2), V, Nv),
+    ins(kv(S1, Nv), Cur, P), 
     transform_tf(T, P, Res).
 
-process_fp(S1, C, S2, [ts(S,Trans)|T], Pre, P) :- 
-    ( S1 = S ->
-        append(Pre, [ts(S,[on(C, S2)|Trans])|T], P)
-    ;
-        process_fp(S1, C, S2, T, [ts(S,Trans)|Pre], P)
-     ).
 
-process_fp(S1, C, S2, [], Pre, [(ts(S1,[on(C, S2)]))|Pre]).
-
-validate_tf([ts(_,Trans)|T]) :- 
-    get_alphabet(Trans, Alphabet),
+validate_tf(bst(kv(_, V), L, R)) :- 
+    keys(V, Alphabet),
     Alphabet \= [],
-    sort(Alphabet, SAlphabet),
-    same_length(SAlphabet, Trans),
-    validate_tf(SAlphabet, T).
+    validate_tf(Alphabet, L),
+    validate_tf(Alphabet, R).
 
-
-validate_tf(Alphabet, [ts(_,Trans)|T]) :-
-    same_length(Alphabet, Trans),
-    get_alphabet(Trans, CAlphabet),
-    sort(CAlphabet, SCAlphabet),
-    SCAlphabet = Alphabet,
-    validate_tf(Alphabet, T).
-
-validate_tf(_, []).
-
-list_compare([], []).
-list_compare([H|T1], [H|T2]) :- list_compare(T1, T2).
-
-get_alphabet(Trans, Alphabet) :- get_alphabet(Trans, [], Alphabet). 
-get_alphabet([], Alphabet, Alphabet).
-get_alphabet([(on(Letter, _))|T], R, Alphabet) :- get_alphabet(T, [Letter|R], Alphabet).
+validate_tf(_, nil).
+validate_tf(Alphabet, bst(kv(_, V), L, R)) :-
+    keys(V, CAlphabet),
+    CAlphabet = Alphabet,
+    validate_tf(Alphabet, L),
+    validate_tf(Alphabet, R).
 
 validate_states(Tf, TfOrg, Ss, As) :- 
-    get_states(Tf,States), 
-    member(Ss, States),
-    subset(States, As),
+    has(Ss, Tf),
+    keys_in(As, Tf),
     get_image(TfOrg, Image),
-    subset(States, Image).
+    keys_in(Image, Tf).
 
 get_image(Tf, Image) :- get_image(Tf, [], Image).
 get_image([], Image, Image).
 get_image([fp(_, _, X)|T], Res, Image) :- get_image(T, [X|Res], Image).
 
-get_states(Tf, S) :- get_states(Tf, [], S).
-get_states([], S, S).
-get_states([ts(St,_)|T], R, S) :- get_states(T, [St|R], S).
-
-
 % accept(+Automat, ?Słowo)
 accept(A, W) :- 
     correct(A, odfa(Tf, Ss, As)),
-    accept_(Tf, Ss, As, W), !.
+    accept_(Tf, Ss, As, W).
 accept_(_, S, As, []) :- member(S, As).
 accept_(Tf, S, As, [H | T]) :-
- 	get_state_transformations(Tf, S, Trs),
+ 	lookup(S, Tf, Trs),
     apply_transformation(Trs, H, Ns),
     accept_(Tf, Ns, As, T).
 
-get_state_transformations([ts(St, StT)|T], S, Trs) :-
-    ( St = S ->
-        Trs = StT
-    ;
-        get_state_transformations(T, S, Trs)
-        ).
+get_state_transformations(Tf, S, Trs) :- lookup(S, Tf, Trs).
 
-apply_transformation([on(Lo, S)|T], L, Ns) :-
-    ( Lo = L ->
-        Ns = S
-    ;
-        apply_transformation(T, L, Ns)    
-        ).
+apply_transformation(Trs, L, Ns) :- lookup(L, Trs, Ns).
 
 subset(A, B) :-
     sort(A, Sa),
     sort(B, Sb),
     segment(Sa, Sb).
+
+segment([H | T], [Hs | Ts]) :-
+    ( H = Hs ->
+        prefix(T, Ts)
+    ;
+        segment(T, [Hs | Ts])
+    ).
 
 % empty(+Automat)
 empty(A) :- 
@@ -99,9 +125,7 @@ empty(A) :-
     reachable_states(Tf, Ss, Rs),
     \+ overlap(Rs, As).
 
-get_dest_states(Ts, States) :- get_dest_states(Ts, [], States).
-get_dest_states([], States, States).
-get_dest_states([on(_, Ns)|T], S, States) :- get_dest_states(T, [Ns|S], States).
+get_dest_states(Ts, States) :- values(Ts, States).
 
 get_states_reachable_from(Tf,Ss, States) :-
     get_state_transformations(Tf, Ss, Ts),
@@ -116,12 +140,11 @@ reachable_states(Tf, Ss, Res, Rs) :-
         add_states(Tf, States, Res, Rs)
         ).
 
-add_states(Tf, [H|T], Res, Rs) :- 
-    R = [H|Res],
+add_states(Tf, [H|T], Res, Rs) :-
     (member(H, Res) -> 
-        add_states(Tf, T, R, Rs)
-    ;
-        reachable_states(Tf, H, R, R_),add_states(Tf, T, R_, Rs)
+        add_states(Tf, T, Res, Rs)
+    ;   
+        reachable_states(Tf, H, [H|Res], R_),add_states(Tf, T, R_, Rs)
     ).
 
 overlap(L1, [H|_]) :- member(H, L1).
@@ -162,23 +185,23 @@ example(b4, dfa([fp(1,a,1)], 1, [1,2])).
 example(b5, dfa([], [], [])).
 
 
-% Success
-example(a11, A), example(a12, B), equal(A, B).
-example(a2, A), example(a1, B), subsetEq(A, B).
-example(a5, A), example(a3, B), subsetEq(A, B).
-example(a6, A), empty(A).
-example(a7, A), empty(A).
-example(a2, A), accept(A, []).
-example(a2, A), accept(A, [a,b]).
-example(a2, A), accept(A, [a,b,a,b]).
+% % Success
+% example(a11, A), example(a12, B), equal(A, B).
+% example(a2, A), example(a1, B), subsetEq(A, B).
+% example(a5, A), example(a3, B), subsetEq(A, B).
+% example(a6, A), empty(A).
+% example(a7, A), empty(A).
+% example(a2, A), accept(A, []).
+% example(a2, A), accept(A, [a,b]).
+% example(a2, A), accept(A, [a,b,a,b]).
 
-% Failure
-example(b1, A), correct(A, _).
-example(b2, A), correct(A, _).
-example(b3, A), correct(A, _).
-example(b4, A), correct(A, _).
-example(b5, A), correct(A, _).
-example(a2, A), empty(A).
-example(a3, A), example(a4, B), equal(A, B).
-example(a4, A), example(a3, B), subsetEq(A, B).
-example(a2, A), accept(A, [a]).
+% % Failure
+% example(b1, A), correct(A, _).
+% example(b2, A), correct(A, _).
+% example(b3, A), correct(A, _).
+% example(b4, A), correct(A, _).
+% example(b5, A), correct(A, _).
+% example(a2, A), empty(A).
+% example(a3, A), example(a4, B), equal(A, B).
+% example(a4, A), example(a3, B), subsetEq(A, B).
+% example(a2, A), accept(A, [a]).
