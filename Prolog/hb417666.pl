@@ -1,74 +1,144 @@
 % Hubert Badocha
 
-% dfa(FunkcjaPrzejścia, StanPoczątkowy, ZbiórStanówAkceptujących),
-% FunkcjaPrzejścia jest listą termów postaci fp(S1, C, S2) oznaczających,
-% że: δ(S1, C) = S2,
-% StanPoczątkowy jest początkowym stanem automatu,
-% ZbiórStanówAkceptujących jest listą (bez powtórzeń) wszystkich stanów akceptujących danego automatu.
-
-use_module(library(lists)).
+% use_module(library(lists))
 
 % correct(+Automat, -Reprezentacja)
-correct(+dfa(Tf, Ss, As), -R) :- 
+correct(dfa(Tf, Ss, As), R) :- 
     transform_tf(Tf, Tf_), 
     validate_tf(Tf_), 
-    sort(As, Sas), 
-    validate_states(Tf_, Ss, Sas).
+    validate_states(Tf_, Tf, Ss, As),
+    R = odfa(Tf_, Ss, As), !.
 
-transform_tf(+Tf, -Res) :- transform_tf(Tf, [], Res).
-transform_tf(+[], +Res, -Res).
-transform_tf(+[fp(S1, C, S2)|T], +Cur, -Res) :-
+transform_tf(Tf, Res) :- transform_tf(Tf, [], Res).
+transform_tf([], Res, Res).
+transform_tf([fp(S1, C, S2)|T], Cur, Res) :-
     process_fp(S1, C, S2, Cur, [], P),
     transform_tf(T, P, Res).
 
-
-process_fp(+S1, +C, +S2, +[ts(S,Trans)|T], +Pre, -P) :- 
-    ( S1 == S ->
-        Ntrans is [on(C, S2)|Trans],
-        append(Pre, [ts(S,NTrans)|T], P)
+process_fp(S1, C, S2, [ts(S,Trans)|T], Pre, P) :- 
+    ( S1 = S ->
+        append(Pre, [ts(S,[on(C, S2)|Trans])|T], P)
     ;
-        process_fp(S1, C, S2, H, [ts(S,Trans)|Pre], P)
-        ).
+        process_fp(S1, C, S2, T, [ts(S,Trans)|Pre], P)
+     ).
 
-process_fp(+S1, +C, +S2, +[], +Pre, -P) :- P is [(ts(S1,[on(C, S2)]))|Pre].
+process_fp(S1, C, S2, [], Pre, [(ts(S1,[on(C, S2)]))|Pre]).
 
-validate_tf(+[ts(_,Trans)|T]) :- 
+validate_tf([ts(_,Trans)|T]) :- 
     get_alphabet(Trans, Alphabet),
     Alphabet \= [],
     sort(Alphabet, SAlphabet),
+    same_length(SAlphabet, Trans),
     validate_tf(SAlphabet, T).
 
-validate_tf(+Alphabet, +ts(_,Trans)) :-
+
+validate_tf(Alphabet, [ts(_,Trans)|T]) :-
+    same_length(Alphabet, Trans),
     get_alphabet(Trans, CAlphabet),
     sort(CAlphabet, SCAlphabet),
-    SCAlphabet = Alphabet.
+    SCAlphabet = Alphabet,
+    validate_tf(Alphabet, T).
 
-get_alphabet(+Trans, -Alphabet) :- get_alphabet(Trans, [], Alphabet). 
-get_alphabet(+[], +Alphabet, -Alphabet).
-get_alphabet(+[(on(Letter, _))|T], +R, -Alphabet) :- get_alphabet(T, [Letter|T], Alphabet).
+validate_tf(_, []).
 
-validate_states(+Tf, +Ss, +Sas) :- 
+list_compare([], []).
+list_compare([H|T1], [H|T2]) :- list_compare(T1, T2).
+
+get_alphabet(Trans, Alphabet) :- get_alphabet(Trans, [], Alphabet). 
+get_alphabet([], Alphabet, Alphabet).
+get_alphabet([(on(Letter, _))|T], R, Alphabet) :- get_alphabet(T, [Letter|R], Alphabet).
+
+validate_states(Tf, TfOrg, Ss, As) :- 
     get_states(Tf,States), 
-    sort(States, SStates),
-    member(Ss, SStates), 
-    segment(SStates, Sas).
+    member(Ss, States),
+    segment(States, As),
+    get_image(TfOrg, Image),
+    segment(States, Image).
 
-get_states(+Tf, -S) :- get_states(Tf, [], S).
-get_states(+[], -S, +S).
-get_states(+[ts(St,_)|T], +R, -S) :- get_states(T, [St|R], S).
+get_image(Tf, Image) :- get_image(Tf, [], Image).
+get_image([], Image, Image).
+get_image([fp(_, _, X)|T], Res, Image) :- get_image(T, [X|Res], Image).
+
+get_states(Tf, S) :- get_states(Tf, [], S).
+get_states([], S, S).
+get_states([ts(St,_)|T], R, S) :- get_states(T, [St|R], S).
 
 
 % accept(+Automat, ?Słowo)
+accept(A, W) :- 
+    correct(A, odfa(Tf, Ss, As)),
+    accept_(Tf, Ss, As, W), !.
+accept_(_, S, As, []) :- member(S, As).
+accept_(Tf, S, As, [H | T]) :-
+ 	get_state_transformations(Tf, S, Trs),
+    apply_transformation(Trs, H, Ns),
+    accept_(Tf, Ns, As, T).
+
+get_state_transformations([ts(St, StT)|T], S, Trs) :-
+    ( St = S ->
+        Trs = StT
+    ;
+        get_state_transformations(T, S, Trs)
+        ).
+
+apply_transformation([on(Lo, S)|T], L, Ns) :-
+    ( Lo = L ->
+        Ns = S
+    ;
+        apply_transformation(T, L, Ns)    
+        ).
+
+subset(A, B) :-
+    sort(A, Sa),
+    sort(B, Sb),
+    segment(Sa, Sb).
 
 % empty(+Automat)
+empty(A) :- 
+    correct(A, odfa(Tf, Ss, As)),
+    reachable_states(Tf, Ss, Rs),
+    \+ overlap(Rs, As).
+
+get_dest_states(Ts, States) :- get_dest_states(Ts, [], States).
+get_dest_states([], States, States).
+get_dest_states([on(_, Ns)|T], S, States) :- get_dest_states(T, [Ns|S], States).
+
+get_states_reachable_from(Tf,Ss, States) :-
+    get_state_transformations(Tf, Ss, Ts),
+    get_dest_states(Ts, States).
+
+reachable_states(Tf, Ss, Rs) :- reachable_states(Tf, Ss, [], Rs).
+reachable_states(Tf, Ss, Res, Rs) :-
+    get_states_reachable_from(Tf, Ss, States),
+    ( subset(Res, States) ->
+        Rs = Res
+    ;   
+        add_states(Tf, States, Res, Rs)
+        ).
+
+add_states(Tf, [H|T], Res, Rs) :- 
+    R = [H|Res],
+    (member(H, Res) -> 
+        add_states(Tf, T, R, Rs)
+    ;
+        reachable_states(Tf, H, R, R_),add_states(Tf, T, R_, Rs)
+    ).
+
+overlap(L1, [H|_]) :- member(H, L1).
+overlap(L1, [_|T]) :- overlap(L1, T).
 
 % equal(+Automat1, +Automat2)
-equal(+A1, +A2) :- correct(A1, C1), correct(A2, C2), subsetEq_(C1, C2), subsetEq_(C2, C1).
+equal(A1, A2) :- 
+    subsetEq(A1, A2), 
+    subsetEq(A2, A1).
 
 % subsetEq(+Automat1, +Automat2)
-subsetEq(+A1, +A2) :- correct(A1, C1), correct(A2, C2), subsetEq_(C1, C2).
+subsetEq(A1, A2) :- 
+    correct(A1, C1), 
+    correct(A2, C2), 
+    subsetEq_(C1, C2).
 
-subsetEq_(+A1, +A2) :- fail.
+subsetEq_(A1, A2) :- fail.
 % Recall some closure properties of regular languages, namely that they are closed under complementation and intersection. Now, L(A)⊆L(B) whenever L(A)∩L(B)¯¯¯¯¯¯¯¯¯¯¯ is empty. So you need to construct the automaton that accepts the intersection of A and the complement of B – these are standard constructions – and test whether the resulting automaton accepts the empty language. This can be checked by inspecting the automaton to see whether any accepting states are reachable from the initial state. If not, then the language accepted is empty.
 
 
