@@ -21,8 +21,18 @@ ins(kv(El, V), bst(kv(X, Vx), L, R), bst(kv(X2, Vx2), L2, R2)) :-
 
 
 lookup(El, bst(kv(El, Kv), _, _), Kv).
-lookup(El, bst(kv(K, _), L, _), V) :- El @< K, lookup(El, L, V).
-lookup(El, bst(kv(K, _), _, R), V) :- El @> K, lookup(El, R, V).
+lookup(El, bst(kv(K, _), L, _), V) :- 
+    ( atom(El) ->
+    	El @< K, lookup(El, L, V)
+    ;   
+    	lookup(El, L, V), El @< K
+    ).
+lookup(El, bst(kv(K, _), _, R), V) :- 
+    ( atom(El) ->
+    	El @> K, lookup(El, R, V)
+    ;   
+    	lookup(El, R, V), El @> K
+    ).
 
 lookup_default(El, T, Def, Res) :- 
     (lookup(El, T, Res) -> 
@@ -69,7 +79,6 @@ transform_tf([fp(S1, C, S2)|T], Cur, Res) :-
     ins(kv(S1, Nv), Cur, P), 
     transform_tf(T, P, Res).
 
-
 validate_tf(bst(kv(_, V), L, R)) :- 
     keys(V, Alphabet),
     Alphabet \= [],
@@ -94,13 +103,16 @@ get_image([fp(_, _, X)|T], Res, Image) :- get_image(T, [X|Res], Image).
 
 % accept(+Automat, ?Słowo)
 accept(A, W) :- 
-    correct(A, odfa(Tf, Ss, As)),
-    accept_(Tf, Ss, As, W).
-accept_(_, S, As, []) :- member(S, As).
-accept_(Tf, S, As, [H | T]) :-
+    correct(A, Oa),
+    accept_(Oa, W).
+accept_(odfa(_, S, As), []) :- member(S, As).
+accept_(odfa(Tf, S, As), [H|T]) :-
+    accept_(odfa(Tf,Ns, As), T),
+    in_alphabet(H, Tf),
  	get_state_transformations(Tf, S, Trs),
-    apply_transformation(Trs, H, Ns),	
-    accept_(Tf, Ns, As, T).
+    apply_transformation(Trs, H, Ns).
+
+in_alphabet(X, bst(kv(_, V), _, _)) :- has(X, V).
 
 get_state_transformations(Tf, S, Trs) :- lookup(S, Tf, Trs).
 
