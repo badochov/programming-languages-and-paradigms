@@ -65,7 +65,8 @@ transform_tf(Tf, Res) :- transform_tf(Tf, nil, Res).
 transform_tf([], Res, Res).
 transform_tf([fp(S1, C, S2)|T], Cur, Res) :-
     lookup_default(S1, Cur, nil, V), 
-    ins(kv(C, S2), V, Nv),
+    \+ has(C, V),
+   	ins(kv(C, S2), V, Nv),
     ins(kv(S1, Nv), Cur, P), 
     transform_tf(T, P, Res).
 
@@ -114,14 +115,17 @@ subset(A, B) :-
 
 segment([H | T], [Hs | Ts]) :-
     ( H = Hs ->
-        prefix(T, Ts)
+        prefix(Ts,T)
     ;
         segment(T, [Hs | Ts])
     ).
 
 % empty(+Automat)
 empty(A) :- 
-    correct(A, odfa(Tf, Ss, As)),
+    correct(A, E),
+    empty_(E).
+
+empty_(odfa(Tf, Ss, As)) :-
     reachable_states(Tf, Ss, Rs),
     \+ overlap(Rs, As).
 
@@ -140,6 +144,7 @@ reachable_states(Tf, Ss, Res, Rs) :-
         add_states(Tf, States, Res, Rs)
         ).
 
+add_states(_, [], Res, Res).
 add_states(Tf, [H|T], Res, Rs) :-
     (member(H, Res) -> 
         add_states(Tf, T, Res, Rs)
@@ -161,8 +166,78 @@ subsetEq(A1, A2) :-
     correct(A2, C2), 
     subsetEq_(C1, C2).
 
-subsetEq_(A1, A2) :- fail.
-% Recall some closure properties of regular languages, namely that they are closed under complementation and intersection. Now, L(A)⊆L(B) whenever L(A)∩L(B)¯¯¯¯¯¯¯¯¯¯¯ is empty. So you need to construct the automaton that accepts the intersection of A and the complement of B – these are standard constructions – and test whether the resulting automaton accepts the empty language. This can be checked by inspecting the automaton to see whether any accepting states are reachable from the initial state. If not, then the language accepted is empty.
+subsetEq_(A1, A2) :- 
+    complement(A2, C2),
+    intersection(A1, C2, I),
+    empty_(I).
+
+
+combine_tf(Tf, Tf2, Tfc) :- combine_tf(Tf, Tf2, nil, Tfc).
+
+combine_tf(nil, _, Tf, Tf).
+combine_tf(bst(Kv, L, R), Tf, Res, Tfc) :-
+    combine_kv(Kv, Tf, Res, TfKv),
+    combine_tf(R, Tf, TfKv, TfR),
+    combine_tf(L, Tf, TfR, Tfc).
+
+combine_kv(_, nil, Tfc, Tfc).
+combine_kv(kv(K, V), bst(kv(TK, TV), L, R), Res, Tfc) :-
+    combine_v(V, TV, nil, Vc),
+    ins(kv((K,TK), Vc), Res, Nr),
+    combine_kv(kv(K, V), L, Nr, Nlr),
+    combine_kv(kv(K, V), R, Nlr, Tfc).
+
+combine_v(nil, _, Vc, Vc).
+combine_v(bst(KV, L, R), Tv, Re, Vc) :- 
+    combine_v_kv(KV, Tv, Re, Res),
+    combine_v(L, Tv, Res, Tl),
+    combine_v(R, Tv, Tl, Vc).
+
+combine_v_kv(kv(K,S), T, Res, Vc) :-
+    lookup(K, T, Sl),
+    ins(kv(K, (S, Sl)), Res, Vc).
+
+combine_ss(Ss, Ss2, (Ss, Ss2)).
+
+combine_as(As, As2, Res) :- cartesian_prod(As, As2, [], Res).
+
+cartesian_prod([], _, Prod, Prod).
+cartesian_prod([H|T], X, P, Prod) :- 
+    cartesian_prod_helper(H, X, P, Res),
+    cartesian_prod(T, X, Res, Prod).
+
+cartesian_prod_helper(_, [], Prod, Prod).
+cartesian_prod_helper(El, [H|T], P, Prod) :-
+    cartesian_prod_helper(El, T, [(El, H)|P], Prod).
+
+
+
+intersection(odfa(Tf, Ss, As), odfa(Tf2, Ss2, As2), I) :-
+    combine_tf(Tf, Tf2, Tfc),
+    combine_ss(Ss, Ss2, Ssc),
+    combine_as(As, As2, Asc),
+    I = odfa(Tfc, Ssc, Asc).
+
+get_states(Fp, States) :- keys(Fp, States).
+
+get_not_in(L1, L2, Res) :-
+    sort(L1, SL1),
+    sort(L2, SL2),
+    get_not_in(SL1, SL2, [], Res).
+
+get_not_in([], _, Res, Res).
+get_not_in(Rest, [], R, Res) :- append(Rest, R, Res).
+get_not_in([H|T], [Hd|Td], R, Res) :-
+    ( H = Hd ->
+        get_not_in(T, Td, R, Res)
+    ;
+        get_not_in(T, [Hd|Td], [H|R], Res)
+    ).
+
+complement(odfa(Fp, Ss, As), C2) :- 
+    get_states(Fp, States),
+    get_not_in(States, As, Nas),
+    C2 = odfa(Fp, Ss, Nas).
 
 
 
