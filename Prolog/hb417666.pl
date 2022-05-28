@@ -24,12 +24,8 @@ lookup(El, bst(kv(El, Kv), _, _), Kv).
 lookup(El, bst(kv(K, _), L, _), V) :- El @< K, lookup(El, L, V).
 lookup(El, bst(kv(K, _), _, R), V) :- El @> K, lookup(El, R, V).
 
-lookup_default(El, T, Def, Res) :- 
-    ( lookup(El, T, Res) -> 
-        Res = Res
-    ; 
-        Def = Res
-    ).
+lookup_default(El, T, _, Res) :- lookup(El, T, Res).
+lookup_default(_, _, Def, Def).
 
 has(El, T) :- lookup(El, T, _).
 
@@ -54,11 +50,10 @@ keys_in([H|T], Tr) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % correct(+Automat, -Reprezentacja)
-correct(dfa(Tf, Ss, As), R) :- 
+correct(dfa(Tf, Ss, As), odfa(Tf_, Ss, As)) :- 
     transform_tf(Tf, Tf_), 
     validate_tf(Tf_), 
-    validate_states(Tf_, Tf, Ss, As),
-    R = odfa(Tf_, Ss, As).
+    validate_states(Tf_, Tf, Ss, As).
 
 
 transform_tf(Tf, Res) :- transform_tf(Tf, nil, Res).
@@ -79,8 +74,7 @@ validate_tf(bst(kv(_, V), L, R)) :-
 
 validate_tf(_, nil).
 validate_tf(Alphabet, bst(kv(_, V), L, R)) :-
-    keys(V, CAlphabet),
-    CAlphabet = Alphabet,
+    keys(V, Alphabet),
     validate_tf(Alphabet, L),
     validate_tf(Alphabet, R).
 
@@ -212,11 +206,10 @@ cartesian_prod_helper(El, [H|T], P, Prod) :-
 
 
 
-intersection(odfa(Tf, Ss, As), odfa(Tf2, Ss2, As2), I) :-
+intersection(odfa(Tf, Ss, As), odfa(Tf2, Ss2, As2), odfa(Tfc, Ssc, Asc)) :-
     combine_tf(Tf, Tf2, Tfc),
     combine_ss(Ss, Ss2, Ssc),
-    combine_as(As, As2, Asc),
-    I = odfa(Tfc, Ssc, Asc).
+    combine_as(As, As2, Asc).
 
 get_states(Fp, States) :- keys(Fp, States).
 
@@ -234,10 +227,9 @@ get_not_in([H|T], [Hd|Td], R, Res) :-
         get_not_in(T, [Hd|Td], [H|R], Res)
     ).
 
-complement(odfa(Fp, Ss, As), C2) :- 
+complement(odfa(Fp, Ss, As), odfa(Fp, Ss, Nas)) :- 
     get_states(Fp, States),
-    get_not_in(States, As, Nas),
-    C2 = odfa(Fp, Ss, Nas).
+    get_not_in(States, As, Nas).
 
 
 
