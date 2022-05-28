@@ -24,8 +24,12 @@ lookup(El, bst(kv(El, Kv), _, _), Kv).
 lookup(El, bst(kv(K, _), L, _), V) :- El @< K, lookup(El, L, V).
 lookup(El, bst(kv(K, _), _, R), V) :- El @> K, lookup(El, R, V).
 
-lookup_default(El, T, _, Res) :- lookup(El, T, Res).
-lookup_default(_, _, Def, Def).
+lookup_default(El, T, Def, Res) :- 
+    (lookup(El, T, Res) -> 
+    	Res=Res
+    ;
+    	Res= Def
+    ).
 
 has(El, T) :- lookup(El, T, _).
 
@@ -94,8 +98,8 @@ accept(A, W) :-
     accept_(Tf, Ss, As, W).
 accept_(_, S, As, []) :- member(S, As).
 accept_(Tf, S, As, [H | T]) :-
- 	lookup(S, Tf, Trs),
-    apply_transformation(Trs, H, Ns),
+ 	get_state_transformations(Tf, S, Trs),
+    apply_transformation(Trs, H, Ns),	
     accept_(Tf, Ns, As, T).
 
 get_state_transformations(Tf, S, Trs) :- lookup(S, Tf, Trs).
@@ -165,7 +169,6 @@ subsetEq_(A1, A2) :-
     intersection(A1, C2, I),
     empty_(I).
 
-
 combine_tf(Tf, Tf2, Tfc) :- combine_tf(Tf, Tf2, nil, Tfc).
 
 combine_tf(nil, _, Tf, Tf).
@@ -219,7 +222,7 @@ get_not_in(L1, L2, Res) :-
     get_not_in(SL1, SL2, [], Res).
 
 get_not_in([], _, Res, Res).
-get_not_in(Rest, [], R, Res) :- append(Rest, R, Res).
+get_not_in([H|T], [], R, Res) :- append([H|T], R, Res).
 get_not_in([H|T], [Hd|Td], R, Res) :-
     ( H = Hd ->
         get_not_in(T, Td, R, Res)
