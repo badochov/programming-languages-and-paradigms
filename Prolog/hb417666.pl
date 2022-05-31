@@ -1,136 +1,180 @@
 % Hubert Badocha
 
+% Opis reprezentacji:
+% reprezentacja to trzy wartości:
+% 1. Funckja przejścia w formie:
+%       mapa ze stanów w mape z elementu alfabetu do stanu.
+% 2. Stan początkowy
+% 3. Zbiór stanów akceptujących
+
 % use_module(library(lists))
 
 
 %%%%%%%%%%%%%%%%% BST %%%%%%%%%%%%%%%%%
 
+% ins(+KeyValuePair, +Tree, +Res)
 ins(kv(El, V), nil, bst(kv(El, V), nil, nil)).
 ins(kv(El, V), bst(kv(X, Vx), L, R), bst(kv(X2, Vx2), L2, R2)) :-
-    ( El @< X -> 
-        ins(kv(El, V), L, Nl),
+    ( El @< X -> % Check is el should be in left subtree.
+        ins(kv(El, V), L, Nl), % Insert to left subtree.
         (X, Vx, Nl, R) = (X2, Vx2, L2, R2)
     ;
-        ( El @> X -> 
-            ins(kv(El, V), R, Nr),
+        ( El @> X -> % Check is el should be in right subtree.
+            ins(kv(El, V), R, Nr), % Insert to right subtree.
             (X, Vx, L, Nr) = (X2, Vx2, L2, R2)
         ;
-            (X, V, L, R) = (X2, Vx2, L2, R2)
+            (X, V, L, R) = (X2, Vx2, L2, R2) % El should replace root.
         )
     ).
 
 
-lookup(El, bst(kv(El, Kv), _, _), Kv).
+lookup(El, bst(kv(El, Kv), _, _), Kv). % Check if element is in root.
 lookup(El, bst(kv(K, _), L, _), V) :- 
-    ( atom(El) ->
-    	El @< K, lookup(El, L, V)
+    ( atom(El) -> % Depending if we are generating or not change order.
+                  % Order change for complexity. 
+    	El @< K, lookup(El, L, V) % Check left subtree is El should be there.
     ;   
     	lookup(El, L, V), El @< K
     ).
 lookup(El, bst(kv(K, _), _, R), V) :- 
-    ( atom(El) ->
-    	El @> K, lookup(El, R, V)
+    ( atom(El) -> % Depending if we are generating or not change order.
+                  % Order change for complexity. 
+    	El @> K, lookup(El, R, V) % Check right subtree is El should be there.
     ;   
     	lookup(El, R, V), El @> K
     ).
 
+% lookup_default(+El, +Tree, +Default, -Res)
 lookup_default(El, T, Def, Res) :- 
-    (lookup(El, T, Res) -> 
-    	Res=Res
+    (lookup(El, T, Res) -> % Check if element is in the tree
+    	Res = Res % If it is, do nothing.
     ;
-    	Res= Def
+    	Res = Def % If it is not, return default value.
     ).
 
+% has(+EL, -Tree)
 has(El, T) :- lookup(El, T, _).
 
+% keys(+Tree, ?Keys)
 keys(T, K) :- keys(T, [], K).
+% keys(+Tree, +TmpRes, ?Keys)
 keys(nil, Res, Res).
 keys(bst(kv(K,_), L, R), Tmp, Res) :-
     keys(R, Tmp, Kr),
     keys(L, [K|Kr], Res).
 
+% values(+Tree, ?Values)
 values(T, V) :- values(T, [], V).
+% values(+Tree, +TmpRes, ?Values)
 values(nil, Res, Res).
 values(bst(kv(_,V), L, R), Tmp, Res) :-
     values(R, Tmp, Vr),
     values(L, [V|Vr], Res).
 
-keys_in([], _).
-keys_in([H|T], Tr) :-
-    has(H, Tr),
-    keys_in(T, Tr).
+% in_keys(+List, +Tree)
+in_keys([], _).
+in_keys([H|T], Tr) :-
+    has(H, Tr), % Check if head is in the tree.
+    in_keys(T, Tr). % Check if the rest is in the tree.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % correct(+Automat, -Reprezentacja)
+% TODO zamienić AS na zbiór
 correct(dfa(Tf, Ss, As), odfa(Tf_, Ss, As)) :- 
-    transform_tf(Tf, Tf_), 
-    validate_tf(Tf_), 
-    validate_states(Tf_, Tf, Ss, As).
+    transform_tf(Tf, Tf_), % Transform transition function to map of maps
+    validate_tf(Tf_), % Validate that transition function is correct
+    validate_states(Tf_, Tf, Ss, As). % Validate that provided states correct.
 
 
+% transform_tf(+TransitionFunctionOrg, -TransitionFunctionMaps)
 transform_tf(Tf, Res) :- transform_tf(Tf, nil, Res).
+% transform_tf(+TransitionFunctionOrg, +Tmp, -TransitionFunctionMaps)
 transform_tf([], Res, Res).
 transform_tf([fp(S1, C, S2)|T], Cur, Res) :-
-    lookup_default(S1, Cur, nil, V), 
-    \+ has(C, V),
-   	ins(kv(C, S2), V, Nv),
-    ins(kv(S1, Nv), Cur, P), 
-    transform_tf(T, P, Res).
+    lookup_default(S1, Cur, nil, V),    % Get transitions from current state.
+    \+ has(C, V),               % Assert that transition wasn't added before.
+   	ins(kv(C, S2), V, Nv),      % Insert new transtion from the state.     
+    ins(kv(S1, Nv), Cur, P),    % Update transition for current state.
+    transform_tf(T, P, Res).    % Convert rest of the transitions.
 
+% validate_tf(+TransitionFunction)
 validate_tf(bst(kv(_, V), L, R)) :- 
-    keys(V, Alphabet),
-    Alphabet \= [],
-    validate_tf(Alphabet, L),
-    validate_tf(Alphabet, R).
+    keys(V, Alphabet),  % Get alphabet.
+    Alphabet \= [],     % Assume alphabet is sane.
+    validate_tf(Alphabet, L),   % Check that transitions in left subtree 
+                                % have the same alphabet.
+    validate_tf(Alphabet, R).   % Check that transitions in right subtree 
+                                % have the same alphabet.
 
+% validate_tf(+Alphabet, +TransitionFunction)
 validate_tf(_, nil).
 validate_tf(Alphabet, bst(kv(_, V), L, R)) :-
-    keys(V, Alphabet),
-    validate_tf(Alphabet, L),
-    validate_tf(Alphabet, R).
+    keys(V, Alphabet),  % Check that alphabet is same as provided.
+    validate_tf(Alphabet, L), % Check left subtree.
+    validate_tf(Alphabet, R). % Check right subtree.
 
+% validate_states(
+%                   +TranstionFunction, 
+%                   +TranstionFunctionOrg, 
+%                   +StartingState
+%                   +AcceptingState
+%         )
 validate_states(Tf, TfOrg, Ss, As) :- 
-    has(Ss, Tf),
-    keys_in(As, Tf),
-    get_image(TfOrg, Image),
-    keys_in(Image, Tf).
+    has(Ss, Tf),     % Check starting state belongs to transition function.
+    in_keys(As, Tf), % Check accepting states belong to transition function.
+    get_image(TfOrg, Image), % Get all states used in transition function.
+    in_keys(Image, Tf). % Check all states have transitions.
 
+% get_image(+TransitionFunction, -Image)
 get_image(Tf, Image) :- get_image(Tf, [], Image).
+% get_image(+TransitionFunction, +Tmp, -Image)
 get_image([], Image, Image).
 get_image([fp(_, _, X)|T], Res, Image) :- get_image(T, [X|Res], Image).
 
-% accept(+Automat, ?Słowo)
+% accept(+DFA, ?Word)
 accept(A, W) :- 
-    correct(A, Oa),
-    accept_(Oa, W).
-accept_(odfa(_, S, As), []) :- member(S, As).
+    correct(A, Oa), % Check DFA is correct and get representation.
+    accept_(Oa, W). 
+% accept_(+ODFA, ?Work)
+accept_(odfa(_, S, As), []) :- member(S, As). 
+                                % If word is empty check if state accepts.
 accept_(odfa(Tf, S, As), [H|T]) :-
-    accept_(odfa(Tf,Ns, As), T),
-    in_alphabet(H, Tf),
- 	get_state_transformations(Tf, S, Trs),
-    apply_transformation(Trs, H, Ns).
+    ( atom(H) ->                % Check if we are generating.
+        % We are not generating.
+        get_state_transformations(Tf, S, Trs), 
+                                    % Get transitions from current state.
+        apply_transformation(Trs, H, Ns), % Get transition for head.
+    	accept_(odfa(Tf,Ns, As), T) % Check tail.
+    ;   
+        % We are generating
+    	accept_(odfa(Tf,Ns, As), T), % Check if tail can accept.
+        in_alphabet(H, Tf),          % Check if head is from alphabet.
+        get_state_transformations(Tf, S, Trs),
+                                     % Get transitions from current state.
+        apply_transformation(Trs, H, Ns) 
+                        % Check if there head transitioning to desired state.
+    ).
 
+
+% in_alphabet(+El, +TransitionFunction)
 in_alphabet(X, bst(kv(_, V), _, _)) :- has(X, V).
 
+% get_state_transformations(+TransitionFunction, +State, -Transitions).
 get_state_transformations(Tf, S, Trs) :- lookup(S, Tf, Trs).
 
+% apply_transformation(+Transitions, +Letter, -NewState).
 apply_transformation(Trs, L, Ns) :- lookup(L, Trs, Ns).
 
+% subset(+A, +B)
+% Check is B is subset of A
 subset(A, B) :-
     sort(A, Sa),
     sort(B, Sb),
     segment(Sa, Sb).
 
-segment([H | T], [Hs | Ts]) :-
-    ( H = Hs ->
-        prefix(Ts,T)
-    ;
-        segment(T, [Hs | Ts])
-    ).
-
-% empty(+Automat)
+% empty(+DFA)
 empty(A) :- 
     correct(A, E),
     empty_(E).
@@ -206,33 +250,43 @@ combine_v_kv(kv(K,S), T, Res, Vc) :-
     lookup(K, T, Sl),
     ins(kv(K, (S, Sl)), Res, Vc).
 
+% combine_ss(+Ss, +Ss2, -CombinedSS)
 combine_ss(Ss, Ss2, (Ss, Ss2)).
 
+% combine_as(+As1, +As2, -CombinedAs)
 combine_as(As, As2, Res) :- cartesian_prod(As, As2, [], Res).
 
+% cartesian_prod(+L1, +L2, +Tmp, -Res)
+% Calculate cartesian product of two lists.
 cartesian_prod([], _, Prod, Prod).
 cartesian_prod([H|T], X, P, Prod) :- 
-    cartesian_prod_helper(H, X, P, Res),
-    cartesian_prod(T, X, Res, Prod).
+    cartesian_prod_helper(H, X, P, Res), % Calc pairs with current element.
+    cartesian_prod(T, X, Res, Prod). % Calc pairs with tail.
 
+% cartesian_prod_helper(+El, +List, +TmpRet, -Ret)
+% Creates cartesian product of List with Element.
 cartesian_prod_helper(_, [], Prod, Prod).
-cartesian_prod_helper(El, [H|T], P, Prod) :-
+cartesian_prod_helper(El, [H|T], P, Prod) :- 
     cartesian_prod_helper(El, T, [(El, H)|P], Prod).
 
 
-
+% intersection(+Representation1, +Representation2, +IntersectionRepresentation)
 intersection(odfa(Tf, Ss, As), odfa(Tf2, Ss2, As2), odfa(Tfc, Ssc, Asc)) :-
-    combine_tf(Tf, Tf2, Tfc),
-    combine_ss(Ss, Ss2, Ssc),
-    combine_as(As, As2, Asc).
+    combine_tf(Tf, Tf2, Tfc), % Create transition fn operationg on state pairs.
+    combine_ss(Ss, Ss2, Ssc), % Convert starting state to pair of states.
+    combine_as(As, As2, Asc). % Convert accepting states to pairs of states. 
 
+% get_not_in(+TransitionFunction, -State)
 get_states(Fp, States) :- keys(Fp, States).
 
+% get_not_in(+List, +BlockList, -NotBlocked)
 get_not_in(L1, L2, Res) :-
     sort(L1, SL1),
     sort(L2, SL2),
     get_not_in(SL1, SL2, [], Res).
 
+% get_not_in(+List, +BlockList, +TmpRes, -NotBlocked)
+% List and Blocklist are assumed to be sorted.
 get_not_in([], _, Res, Res).
 get_not_in([H|T], [], R, Res) :- append([H|T], R, Res).
 get_not_in([H|T], [Hd|Td], R, Res) :-
@@ -242,48 +296,7 @@ get_not_in([H|T], [Hd|Td], R, Res) :-
         get_not_in(T, [Hd|Td], [H|R], Res)
     ).
 
+% complement(+ Representation, -ComlementRepresentation)
 complement(odfa(Fp, Ss, As), odfa(Fp, Ss, Nas)) :- 
     get_states(Fp, States),
     get_not_in(States, As, Nas).
-
-
-
-% example(IdentyfikatorAutomatu, Automat)
-example(a11, dfa([fp(1,a,1),fp(1,b,2),fp(2,a,2),fp(2,b,1)], 1, [2,1])).
-example(a12, dfa([fp(x,a,y),fp(x,b,x),fp(y,a,x),fp(y,b,x)], x, [x,y])).
-example(a2, dfa([fp(1,a,2),fp(2,b,1),fp(1,b,3),fp(2,a,3),fp(3,b,3),fp(3,a,3)], 1, [1])).
-example(a3, dfa([fp(0,a,1),fp(1,a,0)], 0, [0])).
-example(a4, dfa([fp(x,a,y),fp(y,a,z),fp(z,a,x)], x, [x])).
-example(a5, dfa([fp(x,a,y),fp(y,a,z),fp(z,a,zz),fp(zz,a,x)], x, [x])).
-example(a6, dfa([fp(1,a,1),fp(1,b,2),fp(2,a,2),fp(2,b,1)], 1, [])).
-example(a7, dfa([fp(1,a,1),fp(1,b,2),fp(2,a,2),fp(2,b,1), fp(3,b,3),fp(3,a,3)], 1, [3])).
-
-% bad ones
-example(b1, dfa([fp(1,a,1),fp(1,a,1)], 1, [])).
-example(b2, dfa([fp(1,a,1),fp(1,a,2)], 1, [])).
-example(b3, dfa([fp(1,a,2)], 1, [])).
-example(b4, dfa([fp(1,a,1)], 2, [])).
-example(b4, dfa([fp(1,a,1)], 1, [1,2])).
-example(b5, dfa([], [], [])).
-
-
-% % Success
-% example(a11, A), example(a12, B), equal(A, B).
-% example(a2, A), example(a1, B), subsetEq(A, B).
-% example(a5, A), example(a3, B), subsetEq(A, B).
-% example(a6, A), empty(A).
-% example(a7, A), empty(A).
-% example(a2, A), accept(A, []).
-% example(a2, A), accept(A, [a,b]).
-% example(a2, A), accept(A, [a,b,a,b]).
-
-% % Failure
-% example(b1, A), correct(A, _).
-% example(b2, A), correct(A, _).
-% example(b3, A), correct(A, _).
-% example(b4, A), correct(A, _).
-% example(b5, A), correct(A, _).
-% example(a2, A), empty(A).
-% example(a3, A), example(a4, B), equal(A, B).
-% example(a4, A), example(a3, B), subsetEq(A, B).
-% example(a2, A), accept(A, [a]).
