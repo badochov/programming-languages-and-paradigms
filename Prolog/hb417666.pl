@@ -8,7 +8,7 @@
 % 3. Zbiór stanów akceptujących
 % 4. Alfabet
 
-% use_module(library(lists))
+:- use_module(library(lists)).
 
 
 %%%%%%%%%%%%%%%%% BST %%%%%%%%%%%%%%%%%
@@ -275,7 +275,7 @@ combine_kv(kv(K, V), bst(kv(TK, TV), L, R), Res, Tfc) :-
 combine_v(nil, _, Vc, Vc).
 combine_v(bst(kv(K,S), L, R), Tv, Re, Vc) :- 
     lookup(K, Tv, Sl), % Get transitions from current letter.
-    ins(kv(K, (S, Sl)), Re, Res). % Insert combined transition from 
+    ins(kv(K, (S, Sl)), Re, Res), % Insert combined transition from 
                                   % current letter.
     combine_v(L, Tv, Res, Tl), % Combine left subtree.
     combine_v(R, Tv, Tl, Vc).  % Combine right subtree.
