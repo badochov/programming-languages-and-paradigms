@@ -32,7 +32,7 @@ ins(kv(El, V), bst(kv(X, Vx), L, R), bst(kv(X2, Vx2), L2, R2)) :-
 lookup(El, bst(kv(El, Kv), _, _), Kv). % Check if element is in root.
 lookup(El, bst(kv(K, _), L, _), V) :- 
     ( nonvar(El) -> % Depending if we are generating or not change order.
-                  % Order change for complexity. 
+                    % Order change for complexity. 
     	El @< K, lookup(El, L, V) % Check left subtree is El should be there.
     ;   
     	lookup(El, L, V), El @< K
@@ -83,9 +83,9 @@ in_keys([H|T], Tr) :-
 
 % correct(+Automat, -Reprezentacja)
 % TODO zamienić AS na zbiór
-correct(dfa(Tf, Ss, As), odfa(Tf_, Ss, As)) :- 
+correct(dfa(Tf, Ss, As), odfa(Tf_, Ss, As, Alpha)) :- 
     transform_tf(Tf, Tf_), % Transform transition function to map of maps
-    validate_tf(Tf_), % Validate that transition function is correct
+    validate_tf(Tf_, Alpha), % Validate that transition function is correct
     validate_states(Tf_, Tf, Ss, As). % Validate that provided states correct.
 
 
@@ -100,8 +100,8 @@ transform_tf([fp(S1, C, S2)|T], Cur, Res) :-
     ins(kv(S1, Nv), Cur, P),    % Update transition for current state.
     transform_tf(T, P, Res).    % Convert rest of the transitions.
 
-% validate_tf(+TransitionFunction)
-validate_tf(bst(kv(_, V), L, R)) :- 
+% validate_tf(+TransitionFunction, -Alphabet)
+validate_tf(bst(kv(_, V), L, R), Alphabet) :- 
     keys(V, Alphabet),  % Get alphabet.
     Alphabet \= [],     % Assume alphabet is sane.
     validate_tf(Alphabet, L),   % Check that transitions in left subtree 
@@ -139,18 +139,18 @@ accept(A, W) :-
     correct(A, Oa), % Check DFA is correct and get representation.
     accept_(Oa, W). 
 % accept_(+ODFA, ?Work)
-accept_(odfa(_, S, As), []) :- member(S, As). 
+accept_(odfa(_, S, As, _), []) :- member(S, As). 
                                 % If word is empty check if state accepts.
-accept_(odfa(Tf, S, As), [H|T]) :-
+accept_(odfa(Tf, S, As, A), [H|T]) :-
     ( nonvar(H) ->                % Check if we are generating.
         % We are not generating.
         get_state_transformations(Tf, S, Trs), 
                                     % Get transitions from current state.
         apply_transformation(Trs, H, Ns), % Get transition for head.
-    	accept_(odfa(Tf,Ns, As), T) % Check tail.
+    	accept_(odfa(Tf,Ns, As, A), T) % Check tail.
     ;   
         % We are generating
-    	accept_(odfa(Tf,Ns, As), T), % Check if tail can accept.
+    	accept_(odfa(Tf,Ns, As, A), T), % Check if tail can accept.
         in_alphabet(H, Tf),          % Check if head is from alphabet.
         get_state_transformations(Tf, S, Trs),
                                      % Get transitions from current state.
@@ -181,7 +181,7 @@ empty(A) :-
     empty_(E).
 
 % empty(+ODFA)
-empty_(odfa(Tf, Ss, As)) :-
+empty_(odfa(Tf, Ss, As, _)) :-
     reachable_states(Tf, Ss, Rs), % get states reachable from staring state.
     \+ overlap(Rs, As). % check if any of reachable states is accepting.
 
@@ -222,13 +222,13 @@ equal(A1, A2) :-
     subsetEq(A1, A2), 
     subsetEq(A2, A1).
 
-% subsetEq(+ODFA, +ODFA)
+% subsetEq(+Dfa, +Dfa2)
 subsetEq(A1, A2) :- 
     correct(A1, C1), 
     correct(A2, C2), 
     subsetEq_(C1, C2).
 
-% subsetEq(+ODFA, +ODFA)
+% subsetEq(+ODFA, +ODFA2)
 subsetEq_(A1, A2) :- 
     complement(A2, C2),
     intersection(A1, C2, I),
@@ -302,7 +302,7 @@ cartesian_prod_helper(El, [H|T], P, Prod) :-
 
 
 % intersection(+Representation1, +Representation2, +IntersectionRepresentation)
-intersection(odfa(Tf, Ss, As), odfa(Tf2, Ss2, As2), odfa(Tfc, Ssc, Asc)) :-
+intersection(odfa(Tf, Ss, As, A), odfa(Tf2, Ss2, As2, A), odfa(Tfc, Ssc, Asc, A)) :-
     combine_tf(Tf, Tf2, Tfc), % Create transition fn operationg on state pairs.
     combine_ss(Ss, Ss2, Ssc), % Convert starting state to pair of states.
     combine_as(As, As2, Asc). % Convert accepting states to pairs of states. 
@@ -328,6 +328,6 @@ get_not_in([H|T], [Hd|Td], R, Res) :-
     ).
 
 % complement(+ Representation, -ComlementRepresentation)
-complement(odfa(Fp, Ss, As), odfa(Fp, Ss, Nas)) :- 
+complement(odfa(Fp, Ss, As, A), odfa(Fp, Ss, Nas, A)) :- 
     get_states(Fp, States),
     get_not_in(States, As, Nas).
