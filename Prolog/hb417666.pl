@@ -1,11 +1,12 @@
 % Hubert Badocha
 
 % Opis reprezentacji:
-% reprezentacja to trzy wartości:
+% reprezentacja to cztery wartości:
 % 1. Funckja przejścia w formie:
 %       mapa ze stanów w mape z elementu alfabetu do stanu.
 % 2. Stan początkowy
 % 3. Zbiór stanów akceptujących
+% 4. Alfabet
 
 % use_module(library(lists))
 
@@ -30,14 +31,14 @@ ins(kv(El, V), bst(kv(X, Vx), L, R), bst(kv(X2, Vx2), L2, R2)) :-
 
 lookup(El, bst(kv(El, Kv), _, _), Kv). % Check if element is in root.
 lookup(El, bst(kv(K, _), L, _), V) :- 
-    ( atom(El) -> % Depending if we are generating or not change order.
+    ( nonvar(El) -> % Depending if we are generating or not change order.
                   % Order change for complexity. 
     	El @< K, lookup(El, L, V) % Check left subtree is El should be there.
     ;   
     	lookup(El, L, V), El @< K
     ).
 lookup(El, bst(kv(K, _), _, R), V) :- 
-    ( atom(El) -> % Depending if we are generating or not change order.
+    ( nonvar(El) -> % Depending if we are generating or not change order.
                   % Order change for complexity. 
     	El @> K, lookup(El, R, V) % Check right subtree is El should be there.
     ;   
@@ -141,7 +142,7 @@ accept(A, W) :-
 accept_(odfa(_, S, As), []) :- member(S, As). 
                                 % If word is empty check if state accepts.
 accept_(odfa(Tf, S, As), [H|T]) :-
-    ( atom(H) ->                % Check if we are generating.
+    ( nonvar(H) ->                % Check if we are generating.
         % We are not generating.
         get_state_transformations(Tf, S, Trs), 
                                     % Get transitions from current state.
@@ -179,17 +180,22 @@ empty(A) :-
     correct(A, E),
     empty_(E).
 
+% empty(+ODFA)
 empty_(odfa(Tf, Ss, As)) :-
-    reachable_states(Tf, Ss, Rs),
-    \+ overlap(Rs, As).
+    reachable_states(Tf, Ss, Rs), % get states reachable from staring state.
+    \+ overlap(Rs, As). % check if any of reachable states is accepting.
 
+% get_dest_states(+LetterToState, -States)
 get_dest_states(Ts, States) :- values(Ts, States).
 
+% get_states_reachable_from(+TransitionFunction, +StartingState, -States)
 get_states_reachable_from(Tf,Ss, States) :-
     get_state_transformations(Tf, Ss, Ts),
     get_dest_states(Ts, States).
 
+% reachable_state(+TransitionFunction, +StartingState, -ReachableStates)
 reachable_states(Tf, Ss, Rs) :- reachable_states(Tf, Ss, [], Rs).
+% reachable_state(+TransitionFunction, +StartingState, +Tmp, -ReachableStates)
 reachable_states(Tf, Ss, Res, Rs) :-
     get_states_reachable_from(Tf, Ss, States),
     ( subset(Res, States) ->
@@ -198,6 +204,7 @@ reachable_states(Tf, Ss, Res, Rs) :-
         add_states(Tf, States, Res, Rs)
         ).
 
+% add_states(+TransitionFunction, +StatesToAdd, +Tmp, -ReachableStates)
 add_states(_, [], Res, Res).
 add_states(Tf, [H|T], Res, Rs) :-
     (member(H, Res) -> 
@@ -206,49 +213,73 @@ add_states(Tf, [H|T], Res, Rs) :-
         reachable_states(Tf, H, [H|Res], R_),add_states(Tf, T, R_, Rs)
     ).
 
+% overlap(+List1, +List2)
 overlap(L1, [H|_]) :- member(H, L1).
 overlap(L1, [_|T]) :- overlap(L1, T).
 
-% equal(+Automat1, +Automat2)
+% equal(+DFA, +DFA)
 equal(A1, A2) :- 
     subsetEq(A1, A2), 
     subsetEq(A2, A1).
 
-% subsetEq(+Automat1, +Automat2)
+% subsetEq(+ODFA, +ODFA)
 subsetEq(A1, A2) :- 
     correct(A1, C1), 
     correct(A2, C2), 
     subsetEq_(C1, C2).
 
+% subsetEq(+ODFA, +ODFA)
 subsetEq_(A1, A2) :- 
     complement(A2, C2),
     intersection(A1, C2, I),
     empty_(I).
 
+% combine_tf(
+%    +TranstionFunction, 
+%    +TransitionFunction2, 
+%    -CombinedTransitionFunction
+% )
 combine_tf(Tf, Tf2, Tfc) :- combine_tf(Tf, Tf2, nil, Tfc).
 
+% combine_tf(
+%    +TranstionFunction, 
+%    +TransitionFunction2, 
+%    +Tmp,
+%    -CombinedTransitionFunction
+% )
 combine_tf(nil, _, Tf, Tf).
 combine_tf(bst(Kv, L, R), Tf, Res, Tfc) :-
-    combine_kv(Kv, Tf, Res, TfKv),
-    combine_tf(R, Tf, TfKv, TfR),
-    combine_tf(L, Tf, TfR, Tfc).
+    combine_kv(Kv, Tf, Res, TfKv), % Combine transtions from root state.
+    combine_tf(R, Tf, TfKv, TfR), % Combine transitions in left tree.
+    combine_tf(L, Tf, TfR, Tfc).  % Combine transitions in right tree.
 
+% combine_tf(
+%    +StateAndTranistionFunction, 
+%    +TransitionFunction, 
+%    +Tmp,
+%    -CombinedTransitionFunction
+% )
 combine_kv(_, nil, Tfc, Tfc).
 combine_kv(kv(K, V), bst(kv(TK, TV), L, R), Res, Tfc) :-
-    combine_v(V, TV, nil, Vc),
-    ins(kv((K,TK), Vc), Res, Nr),
-    combine_kv(kv(K, V), L, Nr, Nlr),
-    combine_kv(kv(K, V), R, Nlr, Tfc).
+    combine_v(V, TV, nil, Vc), % Combine transtions from root.
+    ins(kv((K,TK), Vc), Res, Nr), % Insert combined transition to output.
+    combine_kv(kv(K, V), L, Nr, Nlr), % Combine transitions in left tree.
+    combine_kv(kv(K, V), R, Nlr, Tfc). % Combine transitions in right tree.
 
+% combine_v(
+%    +TransitionsFromState, 
+%    +TransitionsFromState2, 
+%    +Tmp, 
+%    -CombinedTransitionsFromStates
+% )
 combine_v(nil, _, Vc, Vc).
-combine_v(bst(KV, L, R), Tv, Re, Vc) :- 
-    combine_v_kv(KV, Tv, Re, Res),
-    combine_v(L, Tv, Res, Tl),
-    combine_v(R, Tv, Tl, Vc).
-
-combine_v_kv(kv(K,S), T, Res, Vc) :-
-    lookup(K, T, Sl),
-    ins(kv(K, (S, Sl)), Res, Vc).
+combine_v(bst(kv(K,S), L, R), Tv, Re, Vc) :- 
+    lookup(K, Tv, Sl), % Get transitions from current letter.
+    ins(kv(K, (S, Sl)), Re, Res). % Insert combined transition from 
+                                  % current letter.
+    combine_v(L, Tv, Res, Tl), % Combine left subtree.
+    combine_v(R, Tv, Tl, Vc).  % Combine right subtree.
+    
 
 % combine_ss(+Ss, +Ss2, -CombinedSS)
 combine_ss(Ss, Ss2, (Ss, Ss2)).
