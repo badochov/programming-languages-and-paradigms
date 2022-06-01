@@ -8,9 +8,6 @@
 % 3. Zbiór stanów akceptujących
 % 4. Alfabet
 
-:- use_module(library(lists)).
-
-
 %%%%%%%%%%%%%%%%% BST %%%%%%%%%%%%%%%%%
 
 % ins(+KeyValuePair, +Tree, +Res)
@@ -48,7 +45,7 @@ lookup(El, bst(kv(K, _), _, R), V) :-
 % lookup_default(+El, +Tree, +Default, -Res)
 lookup_default(El, T, Def, Res) :- 
     (lookup(El, T, Res) -> % Check if element is in the tree
-    	Res = Res % If it is, do nothing.
+    	true % If it is, do nothing.
     ;
     	Res = Def % If it is not, return default value.
     ).
@@ -78,16 +75,24 @@ in_keys([H|T], Tr) :-
     has(H, Tr), % Check if head is in the tree.
     in_keys(T, Tr). % Check if the rest is in the tree.
 
+% to_set(+List, -Set)
+to_set(L, S) :- to_set(L, nil, S).
+% to_set(+List, +Tmp, -Set)
+to_set([], S, S).
+to_set([H|T], Tmp, S) :- 
+    ins(kv(H, nil), Tmp, Nt),
+    to_set(T, Nt, S).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % correct(+Automat, -Reprezentacja)
 % TODO zamienić AS na zbiór
-correct(dfa(Tf, Ss, As), odfa(Tf_, Ss, As, Alpha)) :- 
+correct(dfa(Tf, Ss, As), odfa(Tf_, Ss, Sas, Alpha)) :- 
     transform_tf(Tf, Tf_), % Transform transition function to map of maps
     validate_tf(Tf_, Alpha), % Validate that transition function is correct
-    validate_states(Tf_, Tf, Ss, As). % Validate that provided states correct.
-
+    validate_states(Tf_, Tf, Ss, As), % Validate that provided states correct.
+    to_set(As, Sas).
 
 % transform_tf(+TransitionFunctionOrg, -TransitionFunctionMaps)
 transform_tf(Tf, Res) :- transform_tf(Tf, nil, Res).
@@ -100,21 +105,15 @@ transform_tf([fp(S1, C, S2)|T], Cur, Res) :-
     ins(kv(S1, Nv), Cur, P),    % Update transition for current state.
     transform_tf(T, P, Res).    % Convert rest of the transitions.
 
-% validate_tf(+TransitionFunction, -Alphabet)
+% validate_tf(+TransitionFunction, ?Alphabet)
+validate_tf(nil, Alphabet) :- nonvar(Alphabet).
 validate_tf(bst(kv(_, V), L, R), Alphabet) :- 
     keys(V, Alphabet),  % Get alphabet.
     Alphabet \= [],     % Assume alphabet is sane.
-    validate_tf(Alphabet, L),   % Check that transitions in left subtree 
+    validate_tf(L, Alphabet),   % Check that transitions in left subtree 
                                 % have the same alphabet.
-    validate_tf(Alphabet, R).   % Check that transitions in right subtree 
+    validate_tf(R, Alphabet).   % Check that transitions in right subtree 
                                 % have the same alphabet.
-
-% validate_tf(+Alphabet, +TransitionFunction)
-validate_tf(_, nil).
-validate_tf(Alphabet, bst(kv(_, V), L, R)) :-
-    keys(V, Alphabet),  % Check that alphabet is same as provided.
-    validate_tf(Alphabet, L), % Check left subtree.
-    validate_tf(Alphabet, R). % Check right subtree.
 
 % validate_states(
 %                   +TranstionFunction, 
@@ -138,9 +137,8 @@ get_image([fp(_, _, X)|T], Res, Image) :- get_image(T, [X|Res], Image).
 accept(A, W) :- 
     correct(A, Oa), % Check DFA is correct and get representation.
     accept_(Oa, W). 
-% accept_(+ODFA, ?Work)
-accept_(odfa(_, S, As, _), []) :- member(S, As). 
-                                % If word is empty check if state accepts.
+% accept_(+ODFA, ?Word)
+accept_(odfa(_, S, As, _), []) :- has(S, As).
 accept_(odfa(Tf, S, As, A), [H|T]) :-
     ( nonvar(H) ->                % Check if we are generating.
         % We are not generating.
@@ -168,12 +166,12 @@ get_state_transformations(Tf, S, Trs) :- lookup(S, Tf, Trs).
 % apply_transformation(+Transitions, +Letter, -NewState).
 apply_transformation(Trs, L, Ns) :- lookup(L, Trs, Ns).
 
-% subset(+A, +B)
-% Check is B is subset of A
-subset(A, B) :-
-    sort(A, Sa),
-    sort(B, Sb),
-    segment(Sa, Sb).
+% all_in(+L, +S)
+% Check if all elements of L are in S
+all_in([], _).
+all_in([H|T], S) :-
+    has(H, S),
+    all_in(T, S).
 
 % empty(+DFA)
 empty(A) :- 
@@ -194,33 +192,38 @@ get_states_reachable_from(Tf,Ss, States) :-
     get_dest_states(Ts, States).
 
 % reachable_state(+TransitionFunction, +StartingState, -ReachableStates)
-reachable_states(Tf, Ss, Rs) :- reachable_states(Tf, Ss, [], Rs).
+reachable_states(Tf, Ss, Rs) :- reachable_states(Tf, Ss, nil, Rs).
 % reachable_state(+TransitionFunction, +StartingState, +Tmp, -ReachableStates)
 reachable_states(Tf, Ss, Res, Rs) :-
     get_states_reachable_from(Tf, Ss, States),
-    ( subset(Res, States) ->
+    ( all_in(States, Res) ->
         Rs = Res
     ;   
         add_states(Tf, States, Res, Rs)
-        ).
+    ).
 
 % add_states(+TransitionFunction, +StatesToAdd, +Tmp, -ReachableStates)
 add_states(_, [], Res, Res).
 add_states(Tf, [H|T], Res, Rs) :-
-    (member(H, Res) -> 
+    (has(H, Res) -> 
         add_states(Tf, T, Res, Rs)
     ;   
-        reachable_states(Tf, H, [H|Res], R_),add_states(Tf, T, R_, Rs)
+        ins(kv(H, nil), Res, Nr),
+        reachable_states(Tf, H, Nr, R_),
+        add_states(Tf, T, R_, Rs)
     ).
 
-% overlap(+List1, +List2)
-overlap(L1, [H|_]) :- member(H, L1).
-overlap(L1, [_|T]) :- overlap(L1, T).
+% overlap(+Set, +Set2)
+overlap(bst(kv(K, _), _, _), S) :- has(K, S), !.
+overlap(bst(_, L, _), S) :- overlap(L, S), !.
+overlap(bst(_, _, R), S) :- overlap(R, S), !.
 
 % equal(+DFA, +DFA)
 equal(A1, A2) :- 
-    subsetEq(A1, A2), 
-    subsetEq(A2, A1).
+    correct(A1, C1), 
+    correct(A2, C2), 
+    subsetEq_(C1, C2), 
+    subsetEq_(C2, C1).
 
 % subsetEq(+Dfa, +Dfa2)
 subsetEq(A1, A2) :- 
@@ -285,20 +288,23 @@ combine_v(bst(kv(K,S), L, R), Tv, Re, Vc) :-
 combine_ss(Ss, Ss2, (Ss, Ss2)).
 
 % combine_as(+As1, +As2, -CombinedAs)
-combine_as(As, As2, Res) :- cartesian_prod(As, As2, [], Res).
+combine_as(As, As2, Res) :- cartesian_prod(As, As2, nil, Res).
 
-% cartesian_prod(+L1, +L2, +Tmp, -Res)
-% Calculate cartesian product of two lists.
-cartesian_prod([], _, Prod, Prod).
-cartesian_prod([H|T], X, P, Prod) :- 
-    cartesian_prod_helper(H, X, P, Res), % Calc pairs with current element.
-    cartesian_prod(T, X, Res, Prod). % Calc pairs with tail.
+% cartesian_prod(+S1, +S2, +Tmp, -Res)
+% Calculate cartesian product of two sets.
+cartesian_prod(nil, _, Prod, Prod).
+cartesian_prod(bst(kv(H,_), L, R), S, P, Prod) :- 
+    cartesian_prod_helper(H, S, P, Res), % Calc pairs with current element.
+    cartesian_prod(L, S, Res, LRes), % Calc pairs with left tree.
+    cartesian_prod(R, S, LRes, Prod). % Calc pairs with right tree.
 
-% cartesian_prod_helper(+El, +List, +TmpRet, -Ret)
-% Creates cartesian product of List with Element.
-cartesian_prod_helper(_, [], Prod, Prod).
-cartesian_prod_helper(El, [H|T], P, Prod) :- 
-    cartesian_prod_helper(El, T, [(El, H)|P], Prod).
+% cartesian_prod_helper(+El, +Set, +TmpRet, -Ret)
+% Creates cartesian product of Set with Element.
+cartesian_prod_helper(_, nil, Prod, Prod).
+cartesian_prod_helper(El, bst(kv(H,_), L, R), P, Prod) :- 
+    ins(kv((El,H),nil), P, Nr),
+    cartesian_prod_helper(El, L, Nr, Lp),
+    cartesian_prod_helper(El, R, Lp, Prod).
 
 
 % intersection(+Representation1, +Representation2, +IntersectionRepresentation)
@@ -310,21 +316,17 @@ intersection(odfa(Tf, Ss, As, A), odfa(Tf2, Ss2, As2, A), odfa(Tfc, Ssc, Asc, A)
 % get_not_in(+TransitionFunction, -State)
 get_states(Fp, States) :- keys(Fp, States).
 
-% get_not_in(+List, +BlockList, -NotBlocked)
-get_not_in(L1, L2, Res) :-
-    sort(L1, SL1),
-    sort(L2, SL2),
-    get_not_in(SL1, SL2, [], Res).
+% get_not_in(+List, +BlockSet, -NotBlocked)
+get_not_in(L, S, Res) :-get_not_in(L, S, nil, Res).
 
-% get_not_in(+List, +BlockList, +TmpRes, -NotBlocked)
-% List and Blocklist are assumed to be sorted.
+% get_not_in(+List, +BlockSet, +TmpRes, -NotBlocked)
 get_not_in([], _, Res, Res).
-get_not_in([H|T], [], R, Res) :- append([H|T], R, Res).
-get_not_in([H|T], [Hd|Td], R, Res) :-
-    ( H = Hd ->
-        get_not_in(T, Td, R, Res)
+get_not_in([H|T], S, R, Res) :- 
+    ( has(H, S) ->
+        get_not_in(T, S, R, Res)
     ;
-        get_not_in(T, [Hd|Td], [H|R], Res)
+    	ins(kv(H,nil), R, Nr),
+        get_not_in(T, S, Nr, Res)
     ).
 
 % complement(+ Representation, -ComlementRepresentation)
