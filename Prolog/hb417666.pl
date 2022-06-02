@@ -11,6 +11,8 @@
 % 5. Lista stanów
 % 6. Alfabet
 
+:- use_module(library(lists)).
+
 %%%%%%%%%%%%%%%%% BST %%%%%%%%%%%%%%%%%
 
 % ins(+KeyValuePair, +Tree, +Res)
@@ -29,17 +31,14 @@ ins(kv(El, V), bst(kv(X, Vx), L, R), bst(kv(X2, Vx2), L2, R2)) :-
     ).
 
 
+% lookup(El+, +Tree, -Value)
 lookup(El, bst(kv(El, Kv), _, _), Kv).
 lookup(El, bst(kv(K, _), L, _), V) :- El @< K, lookup(El, L, V).
 lookup(El, bst(kv(K, _), _, R), V) :- El @> K, lookup(El, R, V).
 
 % lookup_default(+El, +Tree, +Default, -Res)
-lookup_default(El, T, Def, Res) :- 
-    (lookup(El, T, Res) -> % Check if element is in the tree
-    	true % If it is, do nothing.
-    ;
-    	Res = Def % If it is not, return default value.
-    ).
+lookup_default(El, T, _, Res) :- lookup(El, T, Res), !.
+lookup_default(_, _, Res, Res).
 
 % has(+EL, -Tree)
 has(El, T) :- lookup(El, T, _).
@@ -78,15 +77,14 @@ to_set([H|T], Tmp, S) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % correct(+Automat, -Reprezentacja)
-% TODO zamienić AS na zbiór
 correct(dfa(Tf, Ss, As), odfa(Tf_, TfClean, Ss, Sas, States, Alpha)) :- 
     transform_tf(Tf, [], Tf_), % Transform transition function to map of maps
     validate_tf(Tf_, Alpha), % Validate that transition function is correct
     validate_states(Tf_, Tf, Ss, As), % Validate that provided states correct.
-    to_set(As, Sas),
-    get_states(Tf_, States),
-    get_dead_states(Tf_, States, Sas, DeadStates),
-    transform_tf(Tf, DeadStates, TfClean).
+    to_set(As, Sas), % Convert accepting states to set.
+    get_states(Tf_, States), % Get states from dfa.
+    get_dead_states(Tf_, States, Sas, DeadStates), % Get dead states.
+    transform_tf(Tf, DeadStates, TfClean). % Redo transition function without dead states.
 
 
 % get_not_in(+TransitionFunction, -State)
@@ -113,6 +111,7 @@ transform_tf(Tf, Blocks, Res) :-
     to_set(Blocks, Bs),
     transform_tf(Tf, Bs, nil, Res).
 
+% blocke(+State1, +State2, +Blockset)
 blocked(S1, _, Bs) :- has(S1, Bs).
 blocked(_, S2, Bs) :- has(S2, Bs).
 
@@ -158,31 +157,65 @@ get_image(Tf, Image) :- get_image(Tf, [], Image).
 get_image([], Image, Image).
 get_image([fp(_, _, X)|T], Res, Image) :- get_image(T, [X|Res], Image).
 
-reverse(L, R) :- reverse(L, [], R).
-reverse([],R,R).
-reverse([H|T], Acc, R) :- reverse(T,[H|Acc], R).
-
 % accept(+DFA, ?Word)
 accept(A, W) :- 
-    correct(A, odfa(_, Ctf, S, As, _, _)), % Check DFA is correct and get representation.
-    accept([sw(S, [])], Ctf, As, W).
-% accept(+ODFA, ?Word)
-accept([sw(S, W)|_], _, As, W) :- has(S, As).
-accept([sw(S, Cw)|T], Tf, As, W) :- 
-        get_state_transformations(Tf, S, Trs),
-    	create_accept_posibilities(Cw, Trs, Ap),
-    	append(T, Ap, Nt),
-    	accept(Nt, Tf, As, W).
+    correct(A, Oa), % Check DFA is correct and get representation.
+    accept_h(Oa, W).
+    %(acceptt(Oa, [], W); 
+    %accept_(Oa, 1, [], W)). 
 
-create_accept_posibilities(W, Trs, R) :- create_accept_posibilities(W, Trs, [], R).
-create_accept_posibilities(_, nil, T, T).
-create_accept_posibilities(W, bst(kv(K, S), L, R), T, Nt) :-
-    append(W, [K], X),
-    create_accept_posibilities(W, L, [sw(S, X)|T], Lt),
-    create_accept_posibilities(W, R, Lt, Nt).
+accept_h(Oa, W) :-
+   ( var(W) ->  
+   		accept_h(Oa, 0, cw([], 0), W)
+   ;   
+   		accept_bind(Oa, W)
+   ).
 
-in_alphabet(H, [H|_]).
+
+accept_h(Oa, L, Cw, W) :- 
+    has_len(Oa, 0, L), 
+    ( 
+    	accept_up_to(Oa, L, Cw, W) 
+    ; 
+    	L2 is L + 1, accept_h(Oa, L2, Cw, W)
+    ).
+
+% accept_bind(+ODFA, +Word)
+accept_bind(odfa(_, _, S, As, _, _), []) :- has(S, As). 
+                                % If word is empty check if state accepts.
+accept_bind(odfa(Tf, Ctf, S, As, States, A), [H|T]) :-
+    get_state_transformations(Ctf, S, Trs),
+                                     % Get transitions from current state.
+    in_alphabet(H, A),          % Check if head is from alphabet.
+    apply_transformation(Trs, H, Ns),
+    accept_bind(odfa(Tf, Ctf, Ns, As, States, A), T). % Check if tail can accept.
+
+% has_len(+odfa, +TmpLen, +DesiredLen).
+has_len(_, L, L) :- !.
+has_len(odfa(Tf, Ctf, S, As, States, A), Cl, L) :- 
+    get_state_transformations(Ctf, S, Trs),
+                                     % Get transitions from current state.
+    in_alphabet(H, A),          % Check if head is from alphabet.
+    apply_transformation(Trs, H, Ns),
+    Cl2 is Cl + 1,
+    has_len(odfa(Tf, Ctf, Ns, As, States, A), Cl2, L), !.
+
+% accept_up_to(+odfa, +Length, +CurrentWord, - Word).
+accept_up_to(odfa(_, _, S, As, _, _), L, cw(Cw, L), W) :- 
+    has(S, As),
+    reverse(Cw, W).
+accept_up_to(odfa(Tf, Ctf, S, As, States, A), L, cw(Cw, Cwl), W) :- 
+    Cwl2 is Cwl + 1,
+    L @>= Cwl2,
+    get_state_transformations(Ctf, S, Trs),
+                                     % Get transitions from current state.
+    in_alphabet(H, A),          % Check if head is from alphabet.
+    apply_transformation(Trs, H, Ns),
+    accept_up_to(odfa(Tf, Ctf, Ns, As, States, A), L, cw([H|Cw], Cwl2), W).
+
+% in_alphabet(+Letter, +Alphabet).
 in_alphabet(H, [_|T]) :- in_alphabet(H, T).
+in_alphabet(H, [H|_]).
 
 % get_state_transformations(+TransitionFunction, +State, -Transitions).
 get_state_transformations(Tf, S, Trs) :- lookup(S, Tf, Trs).

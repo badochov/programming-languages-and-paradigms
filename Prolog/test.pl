@@ -18,10 +18,13 @@ example(b4, dfa([fp(1,a,1)], 2, [])).
 example(b4, dfa([fp(1,a,1)], 1, [1,2])).
 example(b5, dfa([], [], [])).
 
+% niepoważne
+example(n1, dfa([fp(1,a,3), fp(1, b, 2), fp(2, b, 3), fp(2, a, 4), fp(3, a, 4), fp(3, b, 5), fp(4, a, 5), fp(4, b, 5), fp(5, a, 5), fp(5, b, 5)], 1, [2,3,4])).
+example(n2, dfa([fp(1,a,3), fp(1, b, 2), fp(2, b, 3), fp(2, a, 4), fp(3, a, 4), fp(3, b, 5), fp(4, a, 5), fp(4, b, 5), fp(5, a, 6), fp(5, b, 6), fp(6, a, 7), fp(6, b, 7), fp(7, a, 5), fp(7, b, 5)], 1, [2,3,4])).
 
 % % Success
 % example(a11, A), example(a12, B), equal(A, B).
-% example(a2, A), example(a1, B), subsetEq(A, B).
+% example(a2, A), example(a11, B), subsetEq(A, B).
 % example(a5, A), example(a3, B), subsetEq(A, B).
 % example(a6, A), empty(A).
 % example(a7, A), empty(A).
