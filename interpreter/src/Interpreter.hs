@@ -65,10 +65,10 @@ getDefs [] = ask
 
 evalTopDef :: TopDef -> Eval Env
 evalTopDef (TopDefVar _ varDef) = evalVarDef varDef
-evalTopDef (TopDefType _ _ []) = ask
-evalTopDef (TopDefType pos name (h : t)) = do
+evalTopDef (TopDefType _ _ _ []) = ask
+evalTopDef (TopDefType pos name _ (h : t)) = do
   evalVariantType h name
-  evalTopDef $ TopDefType pos name t
+  evalTopDef $ TopDefType pos name [] t
 
 evalVariantType :: VariantType -> TypeName -> Eval Env
 evalVariantType (VariantType pos variantName vals) typeName = do
