@@ -18,7 +18,3 @@ Dodatkowo:
     - prosty skrypt, który przekształca w czasie kompilacji `prelude` zdefiniowy w `src/prelude/prelude.zoya` w plik haskellowy z przeparsowanym `prelude`
     - `prelude` jest dołączany do początku każdego programu
 
-
-## Typy polimorficzne
-Mimo, że interpreter wspiera typy polimorficzne, niestety nie zdążyłęm napisać obsługi typów polimorficznych w typecheckerze w terminie, więc są one obecnie poza gramatyką języka.
-
