@@ -4,6 +4,7 @@ all : full
 
 GHC = ghc
 GHC_FLAGS = #-Wall
+BNFC_ENV_CHANGE = env PATH=$(PATH):/home/students/inf/PUBLIC/MRJP/bin/
 
 full:
 	-make parser
@@ -17,7 +18,7 @@ src/ZoyaPrelude.hs: src/prelude/prelude.zoya build_prelude.py
 	-./build_prelude.py
 
 parser: src/grammar.cf
-	-bnfc -d --functor -o src -m src/grammar.cf
+	-${BNFC_ENV_CHANGE} bnfc -d --functor -o src -m src/grammar.cf
 	-cd src && make
 	-rm src/Grammar/Test.hs
 
