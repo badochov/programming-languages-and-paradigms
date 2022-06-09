@@ -1,7 +1,6 @@
-type IntPair = Pair Int Int;
-type Test = Test Int (IntPair) ;
+type Test 'a = Test 'a (Pair 'a 'a) ;
 
-t : Test = (Test 42) ((Pair 6 9));
+t : Test Int = (Test 42) ((Pair 6 9));
 
 main : Bool = match t 
         \ Test a (Pair b c) -> (a == c * b) ^ ((a == 42) & (b == 6) & (c == 9));
