@@ -5,11 +5,12 @@ module TypeChecker where
 import Common (consecutive, posPart, shows_, (<.>))
 import Control.Exception (throw)
 import Control.Monad (foldM, void)
-import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Control.Monad.Except (ExceptT, MonadTrans (lift), runExceptT, throwError)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (local), ReaderT (runReaderT), ask, asks, when)
 import Control.Monad.Writer (MonadWriter (tell), WriterT (runWriterT))
-import qualified Data.Bifunctor
+import Data.Function (on)
+import Data.List (sortBy)
 import Data.Map ((!))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust, isNothing)
@@ -19,18 +20,16 @@ import Grammar.Abs
 
 type PolyId = Int
 
-type PolyMap = Map.Map PolyId (ZoyaType, BNFC'Position)
-
-type VariantT = (Set.Set TypeName, [PolyId], BNFC'Position)
+type CustomT = (Set.Set TypeName, [PolyId], BNFC'Position)
 
 type TypeVariant = (TypeName, ZoyaType, [ZoyaType], BNFC'Position)
 
 data Env = Env
   { vars :: Map.Map VarName (ZoyaType, BNFC'Position),
-    variantTypes :: Map.Map TypeName VariantT,
+    customTypes :: Map.Map TypeName CustomT,
     typeVariants :: Map.Map TypeName TypeVariant,
-    polyIdToType :: PolyMap,
-    polyToId :: Map.Map PolyIdentToken PolyId
+    polyToId :: Map.Map PolyIdentToken PolyId,
+    counter :: Int
   }
   deriving (Show)
 
@@ -40,7 +39,7 @@ data ZoyaType
   = IntType
   | FunType ZoyaType ZoyaType
   | BoolType
-  | CustomType TypeName [ZoyaType] -- FIXME handle polyIdToType
+  | CustomType TypeName [ZoyaType]
   | PolyType PolyIdentToken PolyId
   deriving (Show, Eq)
 
@@ -56,17 +55,19 @@ typeCheckTopDefs [] = ask
 typeCheckTopDef :: TopDef -> TypeCheck Env
 typeCheckTopDef (TopDefVar _ varDef) = typeCheckVarDef varDef
 typeCheckTopDef (TopDefType pos name polies variants) = do
-  prevDef <- getVariantType name
+  prevDef <- getCustomType name
   case prevDef of
     Nothing -> do
       envChanger <- getEnvChanger
-      local envChanger (handleVariantTypes variants)
+      prevPolyToId <- asks polyToId
+      env <- local envChanger (handleVariantTypes variants)
+      return $ env {polyToId = prevPolyToId}
     Just (t, tids, pos) -> throwError $ variantTypeRedefinitionError pos
   where
     getEnvChanger = do
       (env, pids) <- updatePolies polies pos
-      let newVariantTypes = Map.insert name (Set.empty, pids, pos) $ variantTypes env
-      return $ const env {variantTypes = newVariantTypes}
+      let newVariantTypes = Map.insert name (Set.empty, pids, pos) $ customTypes env
+      return $ const env {customTypes = newVariantTypes}
     handleVariantTypes (h : t) = do
       env <- typeCheckVariantType h name
       local (const env) $ handleVariantTypes t
@@ -77,20 +78,20 @@ updatePolies :: [PolyIdentToken] -> BNFC'Position -> TypeCheck (Env, [PolyId])
 updatePolies toks pos = updatePolies' toks []
   where
     updatePolies' :: [PolyIdentToken] -> [PolyId] -> TypeCheck (Env, [PolyId])
-    updatePolies' [] ids = asks (,ids)
+    updatePolies' [] ids = asks (,reverse ids)
     updatePolies' (h : t) ids =
       do
         env <- ask
         let pid = polyToId env
-        let tid = Map.size pid
+        let tid = counter env
         if Map.member h pid
           then throwError $ shows h . shows "already defined" . posPart pos $ ""
           else
-            let newEnv = env {polyToId = Map.insert h tid pid}
+            let newEnv = env {polyToId = Map.insert h tid pid, counter = tid + 1}
              in local (const newEnv) $ updatePolies' t (tid : ids)
 
-getVariantType :: TypeName -> TypeCheck (Maybe VariantT)
-getVariantType t = asks (Map.lookup t . variantTypes)
+getCustomType :: TypeName -> TypeCheck (Maybe CustomT)
+getCustomType t = asks (Map.lookup t . customTypes)
 
 getTypeVariant :: TypeName -> TypeCheck (Maybe TypeVariant)
 getTypeVariant t = asks (Map.lookup t . typeVariants)
@@ -100,70 +101,93 @@ typeCheckVariantType (VariantType pos variantName vals) typeName = do
   prevDef <- getTypeVariant variantName
   case prevDef of
     Nothing -> do
-      vT <- mapM parseType vals
-      let t = createZoyaTypeConstructor typeName vT
-      asks (\e -> e {typeVariants = Map.insert variantName (typeName, t, vT, pos) $ typeVariants e, variantTypes = addVariant e})
+      (vT, e) <- parseTypes vals []
+      () <- checkVT vT
+      t <- local (const e) (createZoyaTypeConstructor typeName vT)
+      return $e {typeVariants = Map.insert variantName (typeName, t, vT, pos) $ typeVariants e, customTypes = addVariant e}
     Just (_, _, _, pos) -> throwError $ typeVariantRedefinitionError pos
   where
     typeVariantRedefinitionError orgPos = shows_ "redefinition of type variant " . shows variantName . posPart pos . shows_ ", previosly defined" . posPart orgPos $ ""
-    addVariant env = Map.adjust (\(vs, tids, pos) -> (Set.insert variantName vs, tids, pos)) typeName $ variantTypes env
+    addVariant env = Map.adjust (\(vs, tids, pos) -> (Set.insert variantName vs, tids, pos)) typeName $ customTypes env
+    checkVT :: [ZoyaType] -> TypeCheck ()
+    checkVT [] = return ()
+    checkVT ((PolyType name 0) : t) = throwError $ shows "type " . shows name . shows " hasn't been defined" . posPart pos $ ""
+    checkVT (h : t) = checkVT t
 
-createZoyaTypeConstructor :: TypeName -> [ZoyaType] -> ZoyaType
-createZoyaTypeConstructor typeName ts = makeLambda ts
+createZoyaTypeConstructor :: TypeName -> [ZoyaType] -> TypeCheck ZoyaType
+createZoyaTypeConstructor typeName ts = makeLambda ts <$> makeConstructor
   where
-    makeLambda [] = CustomType typeName ts
-    makeLambda (h : t) = FunType h $ makeLambda t
+    makeLambda [] cst = cst
+    makeLambda (h : t) cst = FunType h $ makeLambda t cst
+    makeConstructor :: TypeCheck ZoyaType
+    makeConstructor = do
+      polies <- asks polyToId
+      let p = Map.assocs polies
+      let sP = sortBy (compare `on` snd) p
+      let lst = map (uncurry PolyType) sP
+      return $ trace (show "LST " ++ show lst) CustomType typeName lst
 
-parseType :: Type -> TypeCheck ZoyaType
-parseType (TypeInt pos) = return IntType
-parseType (TypeBool pos) = return BoolType
--- parseType (PolyId pos token) = return $ PolyType token -- FIXME polyIdToType types should be mapped to unique ids
-parseType (TypeFn pos arg res) = FunType <$> parseType arg <*> parseType res
+parseType :: Type -> TypeCheck (ZoyaType, Env)
+parseType (TypeInt pos) = asks (IntType,)
+parseType (TypeBool pos) = asks (BoolType,)
+parseType (TypeFn pos arg res) = do
+  (a, aEnv) <- parseType arg
+  (r, rEnv) <- local (const aEnv) (parseType res)
+  return (FunType a r, rEnv)
 parseType (TypeCustom pos name ts) = do
-  vT <- asks variantTypes
+  vT <- asks customTypes
   if Map.member name vT
     then do
-      parsedTs <- mapM parseType ts
-      return $ CustomType name parsedTs
+      (parsedTs, e) <- parseTypes ts []
+      return (CustomType name parsedTs, e)
     else throwError $ shows_ "unknown type " . shows name . posPart pos $ ""
 parseType (TypeBrackets pos t) = parseType t
-parseType (TypePoly pos t) = return $ PolyType t 0 -- polyId is filled in defineType function
+parseType (TypePoly pos t) = do
+  env <- ask
+  case Map.lookup t $ polyToId env of
+    Nothing ->
+      let tid = counter env
+       in return
+            ( PolyType t tid,
+              env
+                { counter = tid + 1,
+                  polyToId = Map.insert t tid $ polyToId env
+                }
+            )
+    Just n -> return (PolyType t n, env)
+
+parseTypes :: [Type] -> [ZoyaType] -> TypeCheck ([ZoyaType], Env)
+parseTypes [] acc = asks (reverse acc,)
+parseTypes (h : t) acc = do
+  (zt, e) <- parseType h
+  local (const e) (parseTypes t (zt : acc))
 
 typeCheckVarDef :: VarDef -> TypeCheck Env
 typeCheckVarDef (VarDef pos name t expr) = do
-  zoyaType <- parseType t
-  newEnv <- defineType name zoyaType pos
-  exprType <- local (const newEnv) $ inferType expr
-  if exprType /= zoyaType
-    then throwError $ mismatchedTypeDeclaration zoyaType exprType
-    else return newEnv
+  (zoyaType, nEnv) <- parseType t
+  prevPolyToId <- trace ("ZT " ++ show zoyaType) asks polyToId
+  newEnv <- local (const nEnv) (defineType name zoyaType pos)
+  exprType <- trace ("VAR DEF " ++ (show $ polyToId newEnv)) local (const newEnv) $ inferType expr
+  if typesEqual prevPolyToId zoyaType exprType
+    then return newEnv {polyToId = prevPolyToId}
+    else throwError $ mismatchedTypeDeclaration zoyaType exprType
   where
-    mismatchedTypeDeclaration zoyaType exprType = shows_ "mismatched type declaration of " . shows name . posPart pos . shows_ "declared: " . shows zoyaType . shows_ ", actual: " . shows exprType $ ""
+    mismatchedTypeDeclaration zoyaType exprType = shows_ "mismatched type declaration of " . shows name . posPart pos . shows_ " declared: " . shows zoyaType . shows_ ", actual: " . shows exprType $ ""
 
 defineType :: VarName -> ZoyaType -> BNFC'Position -> TypeCheck Env
 defineType name zoyaType pos = do
   env <- ask
-  let (zoyaType, env) = fillPolyType env zoyaType
   let tE = vars env
   case Map.lookup name tE of
-    Just (pT, prevPos) -> if pT == zoyaType then ask else throwError $ redeclarationError prevPos
+    Just (pT, prevPos) -> if pT == zoyaType then return env else throwError $ redeclarationError prevPos
     Nothing -> return $ env {vars = Map.insert name (zoyaType, pos) tE}
   where
     redeclarationError prevPos = shows_ "redeclaration of " . shows name . posPart pos . shows_ ", has different type than " . posPart prevPos $ ""
-    fillPolyType env (PolyType pit 0) =
-      let pid = polyToId env
-       in case Map.lookup pit pid of
-            Nothing ->
-              let tid = Map.size pid
-                  env = env {polyToId = Map.insert pit tid pid}
-               in (PolyType pit tid, env)
-            Just n -> (PolyType pit n, env)
-    fillPolyType env t = (t, env)
 
 inferType :: Expr -> TypeCheck ZoyaType
 inferType (ELambda pos argName t expr) = do
-  argType <- parseType t
-  env <- defineType argName argType pos
+  (argType, nEnv) <- parseType t
+  env <- local (const nEnv) (defineType argName argType pos)
   exprType <- local (const env) (inferType expr)
   return $ FunType argType exprType
 inferType (EMatch pos match) = inferTypeMatch match
@@ -174,8 +198,8 @@ inferType (ECond pos stmt ifExpr elseExpr) = do
   _ <- checkType BoolType (inferType stmt) pos
   ifT <- inferType ifExpr
   elseT <- inferType elseExpr
-  env <- asks polyIdToType
-  if typesEqual ifT elseT env
+  pid <- asks polyToId
+  if typesEqual pid ifT elseT
     then return ifT
     else throwError $ mismatchedIfTypesError ifT elseT
   where
@@ -183,7 +207,7 @@ inferType (ECond pos stmt ifExpr elseExpr) = do
 inferType (EVar pos varName) = do
   env <- ask
   case Map.lookup varName $ vars env of
-    Just (t, pos) -> return t
+    Just (t, pos) -> trace (show varName ++ " " ++ show t) return t
     Nothing -> throwError $ shows_ "use of undeclared variable " . shows varName . posPart pos $ ""
 inferType (EType pos typeName) = do
   env <- ask
@@ -200,16 +224,24 @@ inferType (EFApp pos fnExpr argExpr) = do
   outerEnv <- ask
   fn <- inferType fnExpr
   case fn of
-    FunType argType retType -> checkType argType (inferType argExpr) pos >> return retType -- FIXME polyIdToType types
+    FunType argType retType -> do
+      let actM = inferType argExpr
+      act <- actM
+      pid <- asks polyToId
+      if canBeOfType pid argType act
+        then return $ updateRetType retType act argType
+        else do 
+          v <- asks vars
+          trace (show v) throwError $ wrongApplication argType act
     _ -> throwError $ shows_ "tried to call not function" . posPart pos $ ""
+  where
+    wrongApplication ex got = shows_ "tried to call function with wrong argument, expected: " . shows ex . shows_ ", got: " . shows got . posPart pos $ ""
 inferType (ELitInt _ int) = return IntType
 inferType (ELitList pos listArgs) = throwError shouldHaveBeenProccessedError
 inferType (ELitListEmpty pos _) = throwError shouldHaveBeenProccessedError
 inferType (EBrackets pos expr) = inferType expr
-inferType (ENeg pos expr) = do
-  checkType IntType (inferType expr) pos
-inferType (ENot pos expr) = do
-  checkType IntType (inferType expr) pos
+inferType (ENeg pos expr) = checkType IntType (inferType expr) pos
+inferType (ENot pos expr) = checkType BoolType (inferType expr) pos
 inferType (EListEx pos headExpr tailExpr) = throwError shouldHaveBeenProccessedError
 inferType (EMul pos lExpr mulOp rExpr) = checkType IntType (inferType lExpr) pos >> checkType IntType (inferType rExpr) pos >> return IntType
 inferType (EAdd pos lExpr addOp rExpr) = checkType IntType (inferType lExpr) pos >> checkType IntType (inferType rExpr) pos >> return IntType
@@ -217,36 +249,106 @@ inferType (ERel pos lExpr relOp rExpr) = checkType IntType (inferType lExpr) pos
 inferType (EAnd pos lExpr rExpr) = checkType BoolType (inferType lExpr) pos >> checkType BoolType (inferType rExpr) pos
 inferType (EOr pos lExpr rExpr) = checkType BoolType (inferType lExpr) pos >> checkType BoolType (inferType rExpr) pos
 
+updateRetType :: ZoyaType -> ZoyaType -> ZoyaType -> ZoyaType
+updateRetType r e a = let o = trace (show r ++ "<- ret | exp -> " ++ show e ++ " | act -> " ++ show a) updateRetType' r e a in trace (show o) o
+  where
+    updateRetType' r (CustomType _ exTypes) (CustomType _ types) = updateRetTypeList r exTypes types
+    updateRetType' r e (PolyType _ pid) = updatePid pid e r
+    updateRetType' r (FunType exArg exRetType) (FunType arg retType) = updateRetTypeList r [exArg, exRetType] [arg, retType]
+    updateRetType' r _ _ = r
+
+updateRetTypeList :: ZoyaType -> [ZoyaType] -> [ZoyaType] -> ZoyaType
+updateRetTypeList r exL l = foldl (\r (ex, a) -> updateRetType r ex a) r $ zip exL l
+
+updatePid :: PolyId -> ZoyaType -> ZoyaType -> ZoyaType
+updatePid pid t (CustomType name types) = CustomType name (map (updatePid pid t) types)
+updatePid pid t pt@(PolyType _ pidC) = if pid == pidC then t else pt
+updatePid pid t (FunType arg retType) = FunType (updatePid pid t arg) (updatePid pid t retType)
+updatePid _ _ ret = ret
+
 checkType :: ZoyaType -> TypeCheck ZoyaType -> BNFC'Position -> TypeCheck ZoyaType
 checkType expected actualM pos = do
   actual <- actualM
-  eq <- asks (typesEqual expected actual . polyIdToType)
-  if eq then return expected else throwError $ typeMismatchError expected actual pos
+  () <- checkType' expected actual pos
+  return actual
 
-typesEqual :: ZoyaType -> ZoyaType -> PolyMap -> Bool
-typesEqual expected actual polyM = expected == actual -- FIXME polyIdToType types.
+checkType' :: ZoyaType -> ZoyaType -> BNFC'Position -> TypeCheck ()
+checkType' expected actual pos = do
+  pid <- asks polyToId
+  if typesEqual pid expected actual
+    then return ()
+    else throwError $ typeMismatchError expected actual pos
 
--- case expected of
---   IntType -> canBe IntType actual polyM
---   FunType argType retType -> case actual of
---     FunType actArgType actRetType -> False -- not implemented
---     _ -> False
---   BoolType -> canBe BoolType actual polyM
---   CustomType typeName zoyaTypes -> False -- not implemented
---   PolyType name -> polyOk name actual polyM
--- where
---   polyOk :: PolyIdentToken -> ZoyaType -> PolyMap -> Bool
---   polyOk name actual polyM = case Map.lookup name polyM of
---     Nothing -> True
---     Just (t, _) -> typesEqual t actual polyM
---   canBe :: ZoyaType -> ZoyaType -> PolyMap -> Bool
---   canBe ex act polyM = ex == act || exPoly ex act polyM || actPoly ex act polyM
---   exPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
---   exPoly ex act polyM = case ex of
---     PolyType name -> polyOk name act polyM
---     _ -> False
---   actPoly :: ZoyaType -> ZoyaType -> PolyMap -> Bool
---   actPoly ex act polyM = False
+isBound :: Map.Map PolyIdentToken PolyId -> ZoyaType -> Bool
+isBound pid (PolyType name tid) =
+  case trace (show pid) Map.lookup name pid of
+    Nothing -> False
+    Just n -> n == tid
+isBound _ _ = error "unexpected type"
+
+typesEqual :: Map.Map PolyIdentToken PolyId -> ZoyaType -> ZoyaType -> Bool
+typesEqual pid (CustomType exName exTypes) (CustomType name types) = name == exName && trace ("vamos " ++ show exTypes ++ " " ++ show types) typeListEqual pid exTypes types
+typesEqual pid (FunType exArg exRetType) (FunType arg retType) = typeListEqual pid [exArg, exRetType] [arg, retType]
+typesEqual pid (PolyType _ exId) act@(PolyType _ tid) = tid == exId || not (isBound pid act)
+typesEqual pid ex@(PolyType _ _) _ = not (isBound pid ex)
+typesEqual pid expected actual = expected == actual
+
+typeListEqual :: Map.Map PolyIdentToken PolyId -> [ZoyaType] -> [ZoyaType] -> Bool
+typeListEqual pid [] [] = True
+typeListEqual pid (IntType : exT) (IntType : t) = typeListEqual pid exT t
+typeListEqual pid (BoolType : exT) (BoolType : t) = typeListEqual pid exT t
+typeListEqual pid (ex : exT) (act@(PolyType _ _) : t) =
+  if trace ("cmp " ++ show ex ++ " " ++ show act) ex == act
+    then typeListEqual pid exT t
+    else unify
+  where
+    unify = not (isBound pid act) && applyUnification
+    applyUnification =
+      let newT = map (\h -> updateRetType h ex act) t
+       in typeListEqual pid exT newT
+typeListEqual pid (FunType exArg exRet : exT) (FunType arg ret : t) = typeListEqual pid ([exArg, exRet] ++ exT) ([arg, ret] ++ t)
+typeListEqual pid (CustomType exName exTypes : exT) (CustomType name types : t) = exName == name && typeListEqual pid (exTypes ++ exT) (types ++ t)
+typeListEqual _ _ _ = False
+
+canBeOfType :: Map.Map PolyIdentToken PolyId -> ZoyaType -> ZoyaType -> Bool
+canBeOfType pid (CustomType exName exTypes) (CustomType name types) = name == exName && canBeOfTypeList pid exTypes types
+canBeOfType pid (FunType exArg exRetType) (FunType arg retType) = canBeOfTypeList pid [exArg, exRetType] [arg, retType]
+canBeOfType pid ex@(PolyType _ exId) act@(PolyType _ tid) = tid == exId || not (isBound pid ex) || not (isBound pid act)
+canBeOfType pid ex@(PolyType _ _) _ = not (isBound pid ex)
+canBeOfType pid expected actual = expected == actual
+
+canBeOfTypeList :: Map.Map PolyIdentToken PolyId -> [ZoyaType] -> [ZoyaType] -> Bool
+canBeOfTypeList pid [] [] = True
+canBeOfTypeList pid (IntType : exT) (IntType : t) = canBeOfTypeList pid exT t
+canBeOfTypeList pid (BoolType : exT) (BoolType : t) = canBeOfTypeList pid exT t
+canBeOfTypeList pid (ex@(PolyType _ exPid) : exT) (act@(PolyType _ aPid) : t) =
+  if exPid == aPid
+    then canBeOfTypeList pid exT t
+    else unify
+  where
+    unify = (not (isBound pid ex) && applyUnificationEx) || (not (isBound pid act) && applyUnificationAct)
+    applyUnificationAct =
+      let newT = map (\h -> updateRetType h ex act) t
+       in canBeOfTypeList pid exT newT
+    applyUnificationEx =
+      let newExT = map (\h -> updateRetType h act ex) exT
+       in canBeOfTypeList pid newExT t
+canBeOfTypeList pid (ex@(PolyType _ _) : exT) (act : t) = unify
+  where
+    unify = not (isBound pid ex) && applyUnification
+    applyUnification =
+      let newExT = map (\h -> updateRetType h act ex) exT
+       in canBeOfTypeList pid newExT t
+canBeOfTypeList pid (ex : exT) (act@(PolyType _ aPid) : t) =
+  unify
+  where
+    unify = not (isBound pid act) && applyUnificationAct
+    applyUnificationAct =
+      let newT = map (\h -> updateRetType h ex act) t
+       in canBeOfTypeList pid exT newT
+canBeOfTypeList pid (FunType exArg exRet : exT) (FunType arg ret : t) = canBeOfTypeList pid ([exArg, exRet] ++ exT) ([arg, ret] ++ t)
+canBeOfTypeList pid (CustomType exName exTypes : exT) (CustomType name types : t) = exName == name && canBeOfTypeList pid (exTypes ++ exT) (types ++ t)
+canBeOfTypeList _ _ _ = False
 
 typeMismatchError :: ZoyaType -> ZoyaType -> BNFC'Position -> String
 typeMismatchError expected actual pos = shows_ "type mismatch, expected: " . shows expected . shows_ ", actual: " . shows actual . posPart pos $ ""
@@ -256,7 +358,8 @@ shouldHaveBeenProccessedError = "should have been preprocessed"
 
 inferTypeMatch :: Match -> TypeCheck ZoyaType
 inferTypeMatch (Match pos expr arms) = do
-  val <- inferType expr
+  pid <- asks polyToId
+  val <- trace (show "PID " ++ show pid) inferType expr
   inferTypeMatch' val arms Nothing
   where
     inferTypeMatch' :: ZoyaType -> [MatchArm] -> Maybe ZoyaType -> TypeCheck ZoyaType
@@ -267,7 +370,10 @@ inferTypeMatch (Match pos expr arms) = do
       exprType <- local (const newEnv) $ inferType expr
       case prevType of
         Nothing -> inferTypeMatch' val t (Just exprType)
-        Just pT -> if typesEqual pT exprType $ polyIdToType newEnv then inferTypeMatch' val t (Just exprType) else throwError $ matchArmTypeMismatch pT exprType pos
+        Just pT ->
+          if typesEqual (polyToId newEnv) pT exprType
+            then inferTypeMatch' val t (Just exprType)
+            else throwError $ matchArmTypeMismatch pT exprType pos
     matchArmTypeMismatch :: ZoyaType -> ZoyaType -> BNFC'Position -> String
     matchArmTypeMismatch expected actual pos = shows_ "mismatched match arm type, expected: " . shows expected . shows_ ", actual: " . shows actual . posPart pos $ ""
     wrongNumberOfTypeArgs :: TypeName -> BNFC'Position -> String
@@ -275,22 +381,29 @@ inferTypeMatch (Match pos expr arms) = do
     wrongVariantError :: TypeName -> TypeName -> BNFC'Position -> String
     wrongVariantError variantType typeVariant pos = shows typeVariant . shows_ " is not variant of " . shows variantType . posPart pos $ ""
     checkMatch :: MatchArmSpecifier -> ZoyaType -> TypeCheck Env
-    checkMatch (MatchArmType pos typeName args) val = case val of
-      CustomType tn _ -> do
-        -- handle types
-        env <- ask
-        let (s, _, _) = (Map.! tn) . variantTypes $ env
-        if Set.member typeName s
-          then
-            let vT = typeVariants env
-             in case Map.lookup typeName vT of
-                  Nothing -> throwError $ shows_ "unknown variant type " . shows typeName . posPart pos $ ""
-                  Just (_, _, vT, _) ->
-                    if length vT == length args
-                      then checkMatchTypeArgs $ zip args vT
-                      else throwError $ wrongNumberOfTypeArgs tn pos
-          else throwError $ wrongVariantError tn typeName pos
-      _ -> throwError $ shows_ "tried to match: " . shows val . posPart pos $ ""
+    checkMatch (MatchArmType pos typeName args) (CustomType tn ts) = do
+      env <- ask
+      let (s, ids, _) = (Map.! tn) . customTypes $ env
+      if Set.member typeName s
+        then
+          let tv = typeVariants env
+           in case Map.lookup typeName tv of
+                Nothing -> throwError $ shows_ "unknown variant type " . shows typeName . posPart pos $ ""
+                Just (_, _, vT, _) ->
+                  if length vT == length args
+                    then
+                      let unifiedArgs = unifyTypeArgs ids ts vT
+                       in trace (show "UNI " ++ show unifiedArgs) checkMatchTypeArgs $ zip args unifiedArgs
+                    else throwError $ wrongNumberOfTypeArgs tn pos
+        else throwError $ wrongVariantError tn typeName pos
+      where
+        unifyTypeArgs :: [PolyId] -> [ZoyaType] -> [ZoyaType] -> [ZoyaType]
+        unifyTypeArgs pids acts x = let o = trace ("UUU " ++ show x ++ " " ++ show acts ++ " " ++ show pids) map mapR x in trace ("OOOO " ++ show o) o
+          where
+            zipped = zip pids acts
+            foldPid r (pid, act) = updatePid pid act r
+            mapR r = foldl foldPid r zipped
+    checkMatch (MatchArmType pos typeName args) val = throwError $ shows_ "tried to match: " . shows val . posPart pos $ ""
     checkMatch (MatchArmVar pos varName) t = defineType varName t pos
     checkMatch (MatchArmFallback pos) val = ask
     checkMatch MatchArmList {} val = throwError shouldHaveBeenProccessedError
@@ -315,8 +428,8 @@ newEnv :: Env
 newEnv =
   Env
     { vars = Map.empty,
-      polyIdToType = Map.empty,
       polyToId = Map.empty,
-      variantTypes = Map.empty,
-      typeVariants = Map.empty
+      customTypes = Map.empty,
+      typeVariants = Map.empty,
+      counter = 1
     }

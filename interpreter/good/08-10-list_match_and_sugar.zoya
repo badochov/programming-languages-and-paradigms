@@ -1,8 +1,2 @@
-len : List -> Int = let len_ : Int -> List -> Int =
-    |acc:Int||l: List|
-        match l
-        \ [] -> acc
-        \ _:t -> len_ (acc + 1) t in
-    len_ 0;
-
+// funkcja len zaimplementowana jest w prelude.
 main : Int = len [] + len [4,2,0];

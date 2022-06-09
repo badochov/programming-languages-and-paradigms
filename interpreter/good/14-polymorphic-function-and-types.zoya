@@ -1,0 +1,7 @@
+make_pair : 'a -> 'b -> Pair 'a 'b = |a: 'a||b: 'b| 
+      let id: ('d -> 'd) = |d:'d|d in 
+        let idA: ('a -> 'a) = id in
+          let idB: ('b -> 'b) = id in
+            Pair (idA a) (idB b);
+
+main: Pair Int Bool = make_pair 6 true;

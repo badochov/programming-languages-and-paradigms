@@ -8,7 +8,6 @@ Program.                        Program ::= [TopDef] ;
 
 TopDefVar.                      TopDef ::= VarDef ";" ;
 TopDefType.                     TopDef ::= "type" TypeName [PolyIdentToken] "=" [VariantType] ";" ;
---   TopDefType.                     TopDef ::= "type" TypeName "=" [VariantType] ";" ; -- FIXME implement poly logic
 
 VariantType.                    VariantType ::= TypeName [Type] ;
 
@@ -24,7 +23,7 @@ token PolyIdentToken ('\'' lower) ;
 
 TypeInt.            Type1 ::= "Int" ;
 TypeBool.           Type1 ::= "Bool" ;
-TypePoly.           Type1 ::= PolyIdentToken ; -- FIXME implement poly logic
+TypePoly.           Type1 ::= PolyIdentToken ;
 TypeCustom.         Type1 ::= TypeName [Type] ;
 TypeBrackets.       Type1 ::= "(" Type ")" ;
 TypeFn.             Type ::= Type "->" Type ;

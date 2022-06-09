@@ -1,0 +1,2 @@
+// flatten zaimplementowany jest w prelude.
+main : List Int = flatten [[6], [9], [4, 2]];

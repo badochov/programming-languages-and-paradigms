@@ -1,14 +1,14 @@
-type Tree = Leaf List | TNode (Tree) (Tree);
+type Tree = Leaf (List Int) | TNode (Tree) (Tree);
 
 singleton : Tree = Leaf [42];
 twovalues : Tree = Leaf [6, 9];
 
 t : Tree = TNode singleton twovalues;
 
-second_elements : Tree -> List -> List = |t: Tree||acc: List| 
+second_elements : Tree -> (List Int) -> (List Int) = |t: Tree||acc: (List Int)| 
     match t
         \ Leaf (_:(a:_)) -> a : acc
-        \ TNode l r -> let acc2: List = second_elements l acc in second_elements r acc2
+        \ TNode l r -> let acc2: (List Int) = second_elements l acc in second_elements r acc2
         \ _ -> acc;
 
-main : List = second_elements t [];
+main : List Int = second_elements t [];

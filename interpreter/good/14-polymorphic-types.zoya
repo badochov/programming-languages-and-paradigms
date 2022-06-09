@@ -1,0 +1,16 @@
+type Triple 'a 'b 'c = Triple 'a 'b 'c;
+
+combine: (Triple 'a 'b 'c) -> (Triple 'a 'b 'c) -> ('a -> 'a -> 'd) -> ('b -> 'b -> 'e) -> ('c -> 'c -> 'f) -> (Triple 'd 'e 'f) =
+    |t: Triple 'a 'b 'c||t2: Triple 'a 'b 'c||cA: ('a -> 'a -> 'a)||cB: ('b -> 'b -> 'b)||cC: ('c -> 'c -> 'c)|
+        match t
+            \ Triple a b c ->
+                match t2 
+                    \ Triple a2 b2 c2 ->
+                        Triple (cA a a2) (cB b b2) (cC c c2);
+
+add: Int -> Int -> Int = |a: Int||b: Int| a + b;
+and: Bool -> Bool -> Bool = |a: Bool||b: Bool| a & b;
+f: (List (List 'a)) -> (List (List 'a)) -> List 'a = |l1: List (List 'a)||l2: List (List 'a)|
+    flatten (concat l1 l2);
+
+main: Triple Int Bool (List Int) = combine (Triple 6 true [[6], [9]]) (Triple 9 false [[4, 2]]) add and f;

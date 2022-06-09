@@ -1,14 +1,46 @@
-type List = Node Int (List) | Empty;
+type List 'a = Node 'a (List 'a) | Empty;
+type Pair 'a 'b = Pair 'a 'b;
 
 true: Bool = 0 == 0;
 false: Bool = 0 == 1;
 
-head : List -> Int = |l:List| match l 
+rev: (List 'a) -> (List 'a) = |l : List 'a|
+    let rev_: (List 'a) -> (List 'a) -> (List 'a) = |l_: List 'a ||acc: List 'a|
+        match l_
+            \ Empty -> acc
+            \ Node h t -> rev_ t (h:acc)
+     in
+        rev_ l [];
+
+concat: (List 'a) -> (List 'a) -> (List 'a) = |a: List 'a||b: List 'a| 
+    let concat_: (List 'a) -> (List 'a) -> (List 'a) = |a: List 'a||b: List 'a|
+        match a
+            \ Empty -> b
+            \ Node h t -> concat_ t (h:b)
+    in
+        concat_ (rev a) b;
+
+flatten: (List (List 'a)) -> (List 'a) = |ol: List (List 'a)|
+    let flatten_: (List (List 'a)) -> (List 'a) -> (List 'a) = |ll: (List (List 'a))| |acc: List 'a|
+        match ll
+            \ Empty -> acc
+            \ Node h t -> flatten_ t (concat h acc)
+    in
+        flatten_ (rev ol) [];
+
+len : (List 'a) -> Int = let len_ : Int -> (List 'a) -> Int =
+    |acc:Int||l: List 'a|
+        match l
+        \ [] -> acc
+        \ _:t -> len_ (acc + 1) t in
+    len_ 0;
+
+head : (List 'a) -> 'a = |l:List 'a| match l 
     \ a:_ -> a;
 
-empty : List -> Bool = |l:List| match l 
+empty : (List 'a) -> Bool = |l:List 'a| match l 
     \ [] -> true
     \ _ -> false;
 
-tail : List -> List  =|l:List| match l 
+tail : (List 'a) -> (List 'a)  = |l:List 'a| match l 
     \ _:t -> t;
