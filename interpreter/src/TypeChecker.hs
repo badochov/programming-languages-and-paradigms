@@ -15,7 +15,6 @@ import Data.Map ((!))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust, isNothing)
 import qualified Data.Set as Set (Set, empty, insert, member)
-import Debug.Trace (trace)
 import Grammar.Abs
 
 type PolyId = Int
@@ -125,7 +124,7 @@ createZoyaTypeConstructor typeName ts = makeLambda ts <$> makeConstructor
       let p = Map.assocs polies
       let sP = sortBy (compare `on` snd) p
       let lst = map (uncurry PolyType) sP
-      return $ trace (show "LST " ++ show lst) CustomType typeName lst
+      return $ CustomType typeName lst
 
 parseType :: Type -> TypeCheck (ZoyaType, Env)
 parseType (TypeInt pos) = asks (IntType,)
@@ -165,9 +164,9 @@ parseTypes (h : t) acc = do
 typeCheckVarDef :: VarDef -> TypeCheck Env
 typeCheckVarDef (VarDef pos name t expr) = do
   (zoyaType, nEnv) <- parseType t
-  prevPolyToId <- trace ("ZT " ++ show zoyaType) asks polyToId
+  prevPolyToId <- asks polyToId
   newEnv <- local (const nEnv) (defineType name zoyaType pos)
-  exprType <- trace ("VAR DEF " ++ (show $ polyToId newEnv)) local (const newEnv) $ inferType expr
+  exprType <-local (const newEnv) $ inferType expr
   if typesEqual prevPolyToId zoyaType exprType
     then return newEnv {polyToId = prevPolyToId}
     else throwError $ mismatchedTypeDeclaration zoyaType exprType
@@ -207,7 +206,7 @@ inferType (ECond pos stmt ifExpr elseExpr) = do
 inferType (EVar pos varName) = do
   env <- ask
   case Map.lookup varName $ vars env of
-    Just (t, pos) -> trace (show varName ++ " " ++ show t) return t
+    Just (t, pos) -> return t
     Nothing -> throwError $ shows_ "use of undeclared variable " . shows varName . posPart pos $ ""
 inferType (EType pos typeName) = do
   env <- ask
@@ -230,9 +229,7 @@ inferType (EFApp pos fnExpr argExpr) = do
       pid <- asks polyToId
       if canBeOfType pid argType act
         then return $ updateRetType retType act argType
-        else do 
-          v <- asks vars
-          trace (show v) throwError $ wrongApplication argType act
+        else throwError $ wrongApplication argType act
     _ -> throwError $ shows_ "tried to call not function" . posPart pos $ ""
   where
     wrongApplication ex got = shows_ "tried to call function with wrong argument, expected: " . shows ex . shows_ ", got: " . shows got . posPart pos $ ""
@@ -250,12 +247,10 @@ inferType (EAnd pos lExpr rExpr) = checkType BoolType (inferType lExpr) pos >> c
 inferType (EOr pos lExpr rExpr) = checkType BoolType (inferType lExpr) pos >> checkType BoolType (inferType rExpr) pos
 
 updateRetType :: ZoyaType -> ZoyaType -> ZoyaType -> ZoyaType
-updateRetType r e a = let o = trace (show r ++ "<- ret | exp -> " ++ show e ++ " | act -> " ++ show a) updateRetType' r e a in trace (show o) o
-  where
-    updateRetType' r (CustomType _ exTypes) (CustomType _ types) = updateRetTypeList r exTypes types
-    updateRetType' r e (PolyType _ pid) = updatePid pid e r
-    updateRetType' r (FunType exArg exRetType) (FunType arg retType) = updateRetTypeList r [exArg, exRetType] [arg, retType]
-    updateRetType' r _ _ = r
+updateRetType r (CustomType _ exTypes) (CustomType _ types) = updateRetTypeList r exTypes types
+updateRetType r e (PolyType _ pid) = updatePid pid e r
+updateRetType r (FunType exArg exRetType) (FunType arg retType) = updateRetTypeList r [exArg, exRetType] [arg, retType]
+updateRetType r _ _ = r
 
 updateRetTypeList :: ZoyaType -> [ZoyaType] -> [ZoyaType] -> ZoyaType
 updateRetTypeList r exL l = foldl (\r (ex, a) -> updateRetType r ex a) r $ zip exL l
@@ -281,13 +276,13 @@ checkType' expected actual pos = do
 
 isBound :: Map.Map PolyIdentToken PolyId -> ZoyaType -> Bool
 isBound pid (PolyType name tid) =
-  case trace (show pid) Map.lookup name pid of
+  case Map.lookup name pid of
     Nothing -> False
     Just n -> n == tid
 isBound _ _ = error "unexpected type"
 
 typesEqual :: Map.Map PolyIdentToken PolyId -> ZoyaType -> ZoyaType -> Bool
-typesEqual pid (CustomType exName exTypes) (CustomType name types) = name == exName && trace ("vamos " ++ show exTypes ++ " " ++ show types) typeListEqual pid exTypes types
+typesEqual pid (CustomType exName exTypes) (CustomType name types) = name == exName && typeListEqual pid exTypes types
 typesEqual pid (FunType exArg exRetType) (FunType arg retType) = typeListEqual pid [exArg, exRetType] [arg, retType]
 typesEqual pid (PolyType _ exId) act@(PolyType _ tid) = tid == exId || not (isBound pid act)
 typesEqual pid ex@(PolyType _ _) _ = not (isBound pid ex)
@@ -298,7 +293,7 @@ typeListEqual pid [] [] = True
 typeListEqual pid (IntType : exT) (IntType : t) = typeListEqual pid exT t
 typeListEqual pid (BoolType : exT) (BoolType : t) = typeListEqual pid exT t
 typeListEqual pid (ex : exT) (act@(PolyType _ _) : t) =
-  if trace ("cmp " ++ show ex ++ " " ++ show act) ex == act
+  if ex == act
     then typeListEqual pid exT t
     else unify
   where
@@ -358,8 +353,7 @@ shouldHaveBeenProccessedError = "should have been preprocessed"
 
 inferTypeMatch :: Match -> TypeCheck ZoyaType
 inferTypeMatch (Match pos expr arms) = do
-  pid <- asks polyToId
-  val <- trace (show "PID " ++ show pid) inferType expr
+  val <- inferType expr
   inferTypeMatch' val arms Nothing
   where
     inferTypeMatch' :: ZoyaType -> [MatchArm] -> Maybe ZoyaType -> TypeCheck ZoyaType
@@ -393,12 +387,12 @@ inferTypeMatch (Match pos expr arms) = do
                   if length vT == length args
                     then
                       let unifiedArgs = unifyTypeArgs ids ts vT
-                       in trace (show "UNI " ++ show unifiedArgs) checkMatchTypeArgs $ zip args unifiedArgs
+                       in checkMatchTypeArgs $ zip args unifiedArgs
                     else throwError $ wrongNumberOfTypeArgs tn pos
         else throwError $ wrongVariantError tn typeName pos
       where
         unifyTypeArgs :: [PolyId] -> [ZoyaType] -> [ZoyaType] -> [ZoyaType]
-        unifyTypeArgs pids acts x = let o = trace ("UUU " ++ show x ++ " " ++ show acts ++ " " ++ show pids) map mapR x in trace ("OOOO " ++ show o) o
+        unifyTypeArgs pids acts =  map mapR
           where
             zipped = zip pids acts
             foldPid r (pid, act) = updatePid pid act r

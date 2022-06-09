@@ -24,7 +24,12 @@ parser: src/grammar.cf
 zip:
 	-make clean
 	-zip Hubert_Badocha.zip -r . -x tabelka-cech-fun2022.txt .vscode/\* interpreter
+	-unzip Hubert_Badocha.zip -d Hubert_Badocha
+	-rm Hubert_Badocha.zip
+	-zip -r Hubert_Badocha.zip Hubert_Badocha
+	-rm -rf ./Hubert_Badocha
 
 clean:
 	-cd src && make clean
 	-rm -f src/*.hi src/*.o src/*.log src/*.aux src/*.dvi
+	-rm Hubert_Badocha.zip
